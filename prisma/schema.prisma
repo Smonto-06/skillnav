@@ -1,0 +1,108 @@
+// Prisma schema para SkillNav
+// Modela el nucleo del 60%: perfil de candidato, preferencias, vacantes y postulaciones.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Candidato {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  passwordHash  String
+  nombre        String?
+  ciudad        String?
+  contacto      String?
+  disponibilidad String?
+  educacion     Educacion[]
+  experiencia   Experiencia[]
+  habilidades   Habilidad[]
+  preferencia   Preferencia?
+  postulaciones Postulacion[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Educacion {
+  id          String    @id @default(cuid())
+  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId String
+  institucion String
+  titulo      String
+  anio        Int?
+}
+
+model Experiencia {
+  id          String    @id @default(cuid())
+  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId String
+  empresa     String
+  cargo       String
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  descripcion String?
+}
+
+model Habilidad {
+  id          String    @id @default(cuid())
+  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId String
+  nombre      String
+  tipo        TipoHabilidad @default(TECNICA)
+}
+
+model Preferencia {
+  id            String    @id @default(cuid())
+  candidato     Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId   String    @unique
+  salarioMin    Int?
+  salarioMax    Int?
+  modalidad     Modalidad?
+  ubicacion     String?
+  disponibilidad String?
+}
+
+model Vacante {
+  id            String        @id @default(cuid())
+  titulo        String
+  empresa       String
+  descripcion   String?
+  requisitos    String?
+  salario       Int?
+  modalidad     Modalidad?
+  ciudad        String?
+  postulaciones Postulacion[]
+  createdAt     DateTime      @default(now())
+}
+
+model Postulacion {
+  id          String          @id @default(cuid())
+  candidato   Candidato       @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId String
+  vacante     Vacante         @relation(fields: [vacanteId], references: [id], onDelete: Cascade)
+  vacanteId   String
+  estado      EstadoPostulacion @default(POSTULADO)
+  fecha       DateTime        @default(now())
+}
+
+enum TipoHabilidad {
+  TECNICA
+  BLANDA
+}
+
+enum Modalidad {
+  PRESENCIAL
+  REMOTO
+  HIBRIDO
+}
+
+enum EstadoPostulacion {
+  POSTULADO
+  EN_REVISION
+  ENTREVISTA
+  DESCARTADO
+}
