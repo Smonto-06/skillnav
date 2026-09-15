@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Header from "@/components/Header";
 
 export const metadata: Metadata = {
   title: "SkillNav",
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+        <Header />
         {children}
       </body>
     </html>

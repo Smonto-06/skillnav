@@ -1,25 +1,40 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
       <h1 className="text-4xl font-bold tracking-tight">SkillNav</h1>
       <p className="mt-4 text-lg text-slate-600">
-        Plataforma inteligente de perfilamiento y recomendación de oportunidades
-        laborales.
+        Encuentra oportunidades laborales alineadas con tu perfil y preferencias.
       </p>
 
-      <section className="mt-10 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-semibold">Estado del proyecto</h2>
-        <p className="mt-2 text-slate-600">
-          Scaffold inicial (Next.js + TypeScript + Prisma + Tailwind). El núcleo
-          del 60% (perfil, preferencias, motor de recomendación y postulación)
-          se implementa sobre esta base.
-        </p>
-        <ul className="mt-4 list-inside list-disc text-slate-600">
-          <li>Onboarding y perfil de candidato</li>
-          <li>Preferencias laborales</li>
-          <li>Recomendaciones con Match Score</li>
-          <li>Postulación simulada y seguimiento</li>
-        </ul>
+      <div className="mt-8 flex gap-4">
+        <Link
+          href="/registro"
+          className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Crear cuenta
+        </Link>
+        <Link
+          href="/login"
+          className="rounded-md border border-slate-300 px-5 py-2.5 text-sm hover:bg-slate-50"
+        >
+          Iniciar sesión
+        </Link>
+      </div>
+
+      <section className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {[
+          { title: "Perfil completo", desc: "Datos personales, educación, experiencia y habilidades." },
+          { title: "Preferencias laborales", desc: "Salario, modalidad, ubicación y disponibilidad." },
+          { title: "Recomendaciones inteligentes", desc: "Vacantes ordenadas por Match Score (HU-24)." },
+          { title: "Postulación & seguimiento", desc: "Postúlate con un clic y sigue el estado de cada aplicación." },
+        ].map((f) => (
+          <div key={f.title} className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2 className="font-semibold">{f.title}</h2>
+            <p className="mt-1 text-sm text-slate-500">{f.desc}</p>
+          </div>
+        ))}
       </section>
     </main>
   );
