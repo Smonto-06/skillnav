@@ -9,11 +9,11 @@
 |---|---|---|---|
 | E1 | Autenticación & Onboarding | HU-01, HU-02, HU-03 | |
 | E2 | Gestión de Perfil | HU-04…HU-09 | |
-| E3 | Carga y Parsing de CV (IA) | HU-21, HU-22, HU-23 | ⭐ |
+| E3 | Carga y Parsing de CV (IA) | HU-21, HU-22, HU-23 |  |
 | E4 | Preferencias Laborales | HU-10…HU-13 | |
-| E5 | Motor de Recomendación & Vacantes | HU-24, HU-14…HU-17 | HU-24 ⭐ |
+| E5 | Motor de Recomendación & Vacantes | HU-24, HU-14…HU-17 | HU-24  |
 | E6 | Postulación & Seguimiento | HU-18…HU-20 | |
-| E7 | Módulo Administrador | HU-25…HU-29 | ⭐ |
+| E7 | Módulo Administrador | HU-25…HU-29 |  |
 | E8 | Calidad & No Funcionales | HU-NF-01…HU-NF-05 | |
 
 ---
@@ -35,7 +35,7 @@
 | HU-08 | Barra de completitud | Should | S | 2 | Low | Low | Next | HU-04 |
 | HU-09 | Edición de cualquier sección | Should | S | 2 | Low | Low | Next | HU-04 |
 
-## E3 — Carga y Parsing de CV (IA) ⭐ NUEVA
+## E3 — Carga y Parsing de CV (IA)
 | ID | Historia | Prioridad | Tshirt | SP | Inc.Negocio | Compl.Técnica | Fase | Depende de |
 |---|---|---|---|---|---|---|---|---|
 | HU-21 | Subir CV en PDF/DOCX | Must | M | 5 | Low | Medium | Next | HU-01 |
@@ -74,7 +74,7 @@
 | HU-19 | Historial de postulaciones | Must | S | 2 | Low | Low | Next | HU-18 |
 | HU-20 | Estado de postulación | Should | S | 3 | Low | Low | Last | HU-18 |
 
-## E7 — Módulo Administrador ⭐ NUEVA
+## E7 — Módulo Administrador 
 | ID | Historia | Prioridad | Tshirt | SP | Inc.Negocio | Compl.Técnica | Fase | Depende de |
 |---|---|---|---|---|---|---|---|---|
 | HU-25 | Login de administrador | Should | S | 2 | Low | Low | Last | — |
