@@ -1,7 +1,7 @@
 # SkillNav
 
-Plataforma web de perfilamiento y recomendacion de oportunidades laborales.  
-Reto Magneto — Ingenieria de Software, Universidad EAFIT (2026-2).
+Plataforma web de perfilamiento y recomendacion de oportunidades laborales.
+Reto Magneto - Ingenieria de Software, Universidad EAFIT (2026-2).
 
 ## Stack
 
@@ -39,7 +39,7 @@ Abrir http://localhost:3000
 ## Pruebas
 
 ```bash
-npm test       # 17 pruebas unitarias
+npm test       # pruebas unitarias
 npm run build  # verificacion de compilacion
 ```
 
@@ -47,9 +47,6 @@ npm run build  # verificacion de compilacion
 
 ```
 skillnav/
-├── docs/
-│   ├── entrega-2/     # Diagramas de arquitectura y documentacion de la entrega 2
-│   └── entrega-3/     # Documentacion de la entrega 3 (pendiente)
 ├── prisma/
 │   ├── schema.prisma  # Modelo de datos
 │   └── seed.ts        # Datos de prueba
