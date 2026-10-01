@@ -1,15 +1,20 @@
 // E1 · Login con credenciales (HU-02).
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { loginAction } from "@/app/actions/auth";
+import { getCandidatoActual } from "@/lib/auth";
 import { Alert, Card, Field, inputClass, SubmitButton } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: { error?: string };
 }) {
+  const candidato = await getCandidatoActual();
+  if (candidato) redirect("/perfil");
+
   return (
     <main className="mx-auto max-w-md px-6 py-12">
       <h1 className="mb-6 text-2xl font-bold">Iniciar sesión</h1>

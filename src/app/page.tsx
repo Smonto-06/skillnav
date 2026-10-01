@@ -1,6 +1,11 @@
 import Link from "next/link";
+import { getCandidatoActual } from "@/lib/auth";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const candidato = await getCandidatoActual();
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
       <h1 className="text-4xl font-bold tracking-tight">SkillNav</h1>
@@ -9,18 +14,37 @@ export default function Home() {
       </p>
 
       <div className="mt-8 flex gap-4">
-        <Link
-          href="/registro"
-          className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Crear cuenta
-        </Link>
-        <Link
-          href="/login"
-          className="rounded-md border border-slate-300 px-5 py-2.5 text-sm hover:bg-slate-50"
-        >
-          Iniciar sesión
-        </Link>
+        {candidato ? (
+          <>
+            <Link
+              href="/recomendaciones"
+              className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Ver recomendaciones
+            </Link>
+            <Link
+              href="/perfil"
+              className="rounded-md border border-slate-300 px-5 py-2.5 text-sm hover:bg-slate-50"
+            >
+              Mi perfil
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/registro"
+              className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Crear cuenta
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-md border border-slate-300 px-5 py-2.5 text-sm hover:bg-slate-50"
+            >
+              Iniciar sesión
+            </Link>
+          </>
+        )}
       </div>
 
       <section className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
