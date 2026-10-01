@@ -47,7 +47,7 @@ export function matchScore(
   const reqs = vacante.requisitos.map(norm).filter(Boolean);
   const skills =
     reqs.length === 0
-      ? 0
+      ? 1 // sin requisitos: vacante abierta a cualquier perfil
       : reqs.filter((r) => skillsCand.has(r)).length / reqs.length;
 
   // Salario: 1 si la vacante cae dentro del rango esperado; degrada si esta por debajo.
@@ -62,9 +62,9 @@ export function matchScore(
     else salario = Math.max(0, vacante.salario / Math.max(min, 1));
   }
 
-  // Modalidad: 1 si coincide o no hay preferencia.
+  // Modalidad: 1 si coincide, no hay preferencia del candidato, o la vacante no especifica.
   const modalidad =
-    !perfil.modalidad || perfil.modalidad === vacante.modalidad ? 1 : 0;
+    !perfil.modalidad || !vacante.modalidad || perfil.modalidad === vacante.modalidad ? 1 : 0;
 
   // Ubicacion: 1 si coincide ciudad, o si la modalidad es remoto, o sin preferencia.
   const ubicacion =
