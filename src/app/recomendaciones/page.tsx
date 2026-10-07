@@ -39,9 +39,17 @@ export default async function RecomendacionesPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="mb-2 text-2xl font-bold">Vacantes recomendadas</h1>
-      <p className="mb-6 text-sm text-slate-500">
+      <p className="mb-4 text-sm text-slate-500">
         Ordenadas por compatibilidad con tu perfil y preferencias.
       </p>
+      <div className="mb-6 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <strong>¿Qué significa el porcentaje (Match Score)?</strong> Es la compatibilidad entre
+        tu perfil y cada vacante, calculada en tiempo real. Considera tus habilidades (50%),
+        rango salarial (20%), modalidad preferida (20%) y ciudad (10%). El porcentaje{" "}
+        <strong>cambia</strong> según la información que tengas en tu perfil: a más habilidades
+        y preferencias completas, más preciso y útil es el resultado. Despliega{" "}
+        &ldquo;Desglose del score&rdquo; para ver el detalle por dimensión.
+      </div>
 
       {searchParams.ok && <Alert message={searchParams.ok} tone="ok" />}
       {searchParams.error && <Alert message={searchParams.error} />}
@@ -83,9 +91,12 @@ export default async function RecomendacionesPage({
                     </details>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
-                    <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-700">
-                      {score}%
-                    </span>
+                    <div className="flex flex-col items-center">
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-700">
+                        {score}%
+                      </span>
+                      <span className="mt-0.5 text-xs text-slate-400">Match</span>
+                    </div>
                     {yaPostulado.has(vacante.id) ? (
                       <span className="rounded-md border border-slate-200 px-3 py-1 text-xs text-slate-400">
                         Postulado
