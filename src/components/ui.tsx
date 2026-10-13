@@ -38,16 +38,16 @@ export function SubmitButton({ children }: { children: ReactNode }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Guardando..." : children}
     </button>
   );
 }
 
-export function Card({ children }: { children: ReactNode }) {
+export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6">
+    <section className={`rounded-xl border border-slate-200 bg-white p-6 ${className}`}>
       {children}
     </section>
   );
