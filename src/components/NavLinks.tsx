@@ -22,10 +22,10 @@ export default function NavLinks() {
             key={href}
             href={href}
             aria-current={activo ? "page" : undefined}
-            className={`whitespace-nowrap rounded-md px-3 py-1.5 transition-colors ${
+            className={`whitespace-nowrap rounded-full px-3 py-1.5 transition-colors ${
               activo
-                ? "bg-blue-50 font-medium text-blue-700"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                ? "bg-white/10 font-medium text-acento"
+                : "text-slate-300 hover:bg-white/5 hover:text-white"
             }`}
           >
             {label}

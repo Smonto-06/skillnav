@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { coincidencias, detalleVacante, estadoLabel, explicarCoincidencias } from "./presentacion";
+import {
+  coincidencias,
+  detalleVacante,
+  estadoLabel,
+  explicarCoincidencias,
+  filtrarVacantes,
+} from "./presentacion";
 
 describe("detalleVacante", () => {
   it("arma la línea con modalidad legible, ciudad y salario", () => {
@@ -52,5 +58,27 @@ describe("estadoLabel", () => {
   it("traduce el estado de BD al texto del candidato", () => {
     expect(estadoLabel("DESCARTADO")).toBe("Rechazada");
     expect(estadoLabel("POSTULADO")).toBe("Enviada");
+  });
+});
+
+describe("filtrarVacantes", () => {
+  const vacantes = [
+    { titulo: "Data Analyst", empresa: "Grupo Exito", requisitos: "Python, SQL", ciudad: "Medellin" },
+    { titulo: "Frontend Developer", empresa: "Magneto", requisitos: "React", ciudad: "Bogota" },
+  ];
+
+  it("sin términos devuelve todo", () => {
+    expect(filtrarVacantes(vacantes, "", "")).toHaveLength(2);
+  });
+
+  it("busca en cargo, empresa y requisitos sin distinguir mayúsculas", () => {
+    expect(filtrarVacantes(vacantes, "python").map((v) => v.titulo)).toEqual(["Data Analyst"]);
+    expect(filtrarVacantes(vacantes, "MAGNETO").map((v) => v.titulo)).toEqual(["Frontend Developer"]);
+  });
+
+  it("filtra por ciudad ignorando tildes", () => {
+    expect(filtrarVacantes(vacantes, "", "Bogotá").map((v) => v.titulo)).toEqual([
+      "Frontend Developer",
+    ]);
   });
 });

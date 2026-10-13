@@ -30,7 +30,7 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-acento focus:outline-none focus:ring-1 focus:ring-acento";
 
 export function SubmitButton({ children }: { children: ReactNode }) {
   const { pending } = useFormStatus();
@@ -38,7 +38,7 @@ export function SubmitButton({ children }: { children: ReactNode }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-full bg-acento px-4 py-2 text-sm font-semibold text-marca hover:bg-acento-hover disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Guardando..." : children}
     </button>

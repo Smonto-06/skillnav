@@ -8,12 +8,18 @@ import { completitud } from "@/lib/completeness";
 import { explicarCoincidencias, detalleVacante, modalidadLabel } from "@/lib/presentacion";
 import type { Modalidad } from "@/lib/scoring";
 import { Alert, Card } from "@/components/ui";
-import { BotonPostular, FlechaDerecha, FlechaDiagonal, MatchRing } from "@/components/vacantes";
+import {
+  BotonPostular,
+  BuscadorVacantes,
+  FlechaDerecha,
+  FlechaDiagonal,
+  MatchRing,
+} from "@/components/vacantes";
 
 export const dynamic = "force-dynamic";
 
 const TILES = [
-  { clave: "TOTAL", etiqueta: "Enviadas", estilo: "bg-blue-50 text-blue-700" },
+  { clave: "TOTAL", etiqueta: "Enviadas", estilo: "bg-acento-suave text-acento-texto" },
   { clave: "EN_REVISION", etiqueta: "En revisión", estilo: "bg-amber-50 text-amber-700" },
   { clave: "ENTREVISTA", etiqueta: "Entrevistas", estilo: "bg-violet-50 text-violet-700" },
   { clave: "OFERTA", etiqueta: "Ofertas", estilo: "bg-green-50 text-green-700" },
@@ -80,7 +86,7 @@ export default async function Home({
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <p className="text-sm font-medium text-blue-700">Tu espacio de carrera</p>
+      <p className="text-sm font-medium text-acento-texto">Tu espacio de carrera</p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Hola, {nombre}</h1>
       <p className="mt-2 text-slate-600">Oportunidades y avances elegidos para ti.</p>
 
@@ -99,7 +105,7 @@ export default async function Home({
             </div>
             <Link
               href="/recomendaciones"
-              className="flex shrink-0 items-center gap-1 text-sm font-medium text-blue-700 hover:underline"
+              className="flex shrink-0 items-center gap-1 text-sm font-medium text-acento-texto hover:underline"
             >
               Ver todas <FlechaDerecha />
             </Link>
@@ -118,10 +124,10 @@ export default async function Home({
                       <div className="min-w-0">
                         <Link
                           href={`/recomendaciones#${vacante.id}`}
-                          className="inline-flex items-center gap-1 text-lg font-semibold hover:text-blue-700"
+                          className="inline-flex items-center gap-1 text-lg font-semibold hover:text-acento-texto"
                         >
                           {vacante.titulo}
-                          <FlechaDiagonal className="h-4 w-4 text-blue-700" />
+                          <FlechaDiagonal className="h-4 w-4 text-acento-texto" />
                         </Link>
                         <p className="text-slate-600">{vacante.empresa}</p>
                         <p className="mt-1 text-sm text-slate-500">{detalleVacante(vacante)}</p>
@@ -157,7 +163,7 @@ export default async function Home({
             </div>
             <div className="mt-3 h-2 w-full rounded-full bg-slate-200">
               <div
-                className="h-2 rounded-full bg-blue-700 transition-all"
+                className="h-2 rounded-full bg-acento transition-all"
                 style={{ width: `${porcentaje}%` }}
               />
             </div>
@@ -168,7 +174,7 @@ export default async function Home({
             </p>
             <Link
               href="/perfil"
-              className="mt-4 block rounded-md bg-blue-700 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-800"
+              className="mt-4 block rounded-full bg-acento px-4 py-2.5 text-center text-sm font-semibold text-marca hover:bg-acento-hover"
             >
               {faltantes.length === 0 ? "Revisar mi perfil" : "Completar mi perfil"}
             </Link>
@@ -180,7 +186,7 @@ export default async function Home({
               <Link
                 href="/postulaciones"
                 aria-label="Ver postulaciones"
-                className="rounded-md p-1 text-blue-700 hover:bg-blue-50"
+                className="rounded-md p-1 text-acento-texto hover:bg-acento-suave"
               >
                 <FlechaDerecha />
               </Link>
@@ -198,7 +204,7 @@ export default async function Home({
           <Card>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">Tus preferencias</h2>
-              <Link href="/preferencias" className="text-sm font-medium text-blue-700 hover:underline">
+              <Link href="/preferencias" className="text-sm font-medium text-acento-texto hover:underline">
                 Editar
               </Link>
             </div>
@@ -225,39 +231,49 @@ export default async function Home({
   );
 }
 
-function Presentacion() {
+async function Presentacion() {
+  const total = await prisma.vacante.count();
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
-      <p className="text-sm font-medium text-blue-700">Tu espacio de carrera</p>
-      <h1 className="mt-1 text-4xl font-bold tracking-tight">SkillNav</h1>
-      <p className="mt-4 max-w-2xl text-lg text-slate-600">
-        Encuentra oportunidades laborales alineadas con tu perfil y preferencias.
-      </p>
+    <main>
+      <section className="bg-marca text-white">
+        <div className="mx-auto max-w-4xl px-6 pb-20 pt-16 text-center">
+          <p className="text-sm font-medium text-acento">Tu espacio de carrera</p>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+            Encuentra tu trabajo ideal con Skill<span className="text-acento">Nav</span>
+          </h1>
+          <p className="mt-4 text-lg text-slate-300">
+            Oportunidades laborales alineadas con tu perfil, tus habilidades y tus preferencias.
+          </p>
+          <div className="mx-auto mt-8 max-w-3xl text-left">
+            <BuscadorVacantes total={total} />
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/registro"
+              className="rounded-full bg-acento px-6 py-2.5 text-sm font-semibold text-marca hover:bg-acento-hover"
+            >
+              Crear cuenta gratis
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-full border border-white/20 px-6 py-2.5 text-sm font-medium text-white hover:bg-white/10"
+            >
+              Ya tengo cuenta
+            </Link>
+          </div>
+        </div>
+      </section>
 
-      <div className="mt-8 flex gap-3">
-        <Link
-          href="/registro"
-          className="rounded-md bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
-        >
-          Crear cuenta
-        </Link>
-        <Link
-          href="/login"
-          className="rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium hover:bg-slate-50"
-        >
-          Iniciar sesión
-        </Link>
-      </div>
-
-      <section className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <section className="mx-auto -mt-10 grid max-w-6xl grid-cols-1 gap-4 px-6 pb-16 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { title: "Perfil completo", desc: "Datos personales, educación, experiencia y habilidades." },
           { title: "Preferencias laborales", desc: "Salario, modalidad, ubicación y disponibilidad." },
-          { title: "Recomendaciones inteligentes", desc: "Vacantes ordenadas por Match Score (HU-24)." },
+          { title: "Recomendaciones inteligentes", desc: "Vacantes ordenadas por Match Score y explicadas." },
           { title: "Postulación y seguimiento", desc: "Postúlate con un clic y sigue el estado de cada aplicación." },
         ].map((f) => (
-          <div key={f.title} className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="font-semibold">{f.title}</h2>
+          <div key={f.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <span className="block h-1 w-8 rounded-full bg-acento" aria-hidden />
+            <h2 className="mt-3 font-semibold text-slate-900">{f.title}</h2>
             <p className="mt-1 text-sm text-slate-500">{f.desc}</p>
           </div>
         ))}

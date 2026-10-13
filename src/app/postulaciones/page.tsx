@@ -8,7 +8,7 @@ import { Alert, Card } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 const ESTADO_COLOR: Record<string, string> = {
-  POSTULADO: "bg-blue-50 text-blue-700",
+  POSTULADO: "bg-acento-suave text-acento-texto",
   EN_REVISION: "bg-amber-50 text-amber-700",
   ENTREVISTA: "bg-violet-50 text-violet-700",
   OFERTA: "bg-green-50 text-green-700",
@@ -42,7 +42,7 @@ export default async function PostulacionesPage({
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <p className="text-sm font-medium text-blue-700">Tu búsqueda en marcha</p>
+      <p className="text-sm font-medium text-acento-texto">Tu búsqueda en marcha</p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight">Mis postulaciones</h1>
       <p className="mt-1 text-sm text-slate-500">
         Consulta el estado y el avance de cada oportunidad.
@@ -63,7 +63,7 @@ export default async function PostulacionesPage({
               aria-current={activo ? "page" : undefined}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                 activo
-                  ? "border-blue-700 bg-blue-700 text-white"
+                  ? "border-marca bg-marca text-white"
                   : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
@@ -83,7 +83,7 @@ export default async function PostulacionesPage({
             </p>
             <Link
               href="/"
-              className="mt-4 inline-block rounded-md bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
+              className="mt-4 inline-block rounded-full bg-acento px-5 py-2.5 text-sm font-semibold text-marca hover:bg-acento-hover"
             >
               Mira tus 3 mejores vacantes
             </Link>
@@ -134,7 +134,7 @@ export default async function PostulacionesPage({
                           <li key={e.clave}>
                             <div
                               className={`h-1.5 rounded-full ${
-                                i <= indiceEtapa ? "bg-blue-700" : "bg-slate-200"
+                                i <= indiceEtapa ? "bg-acento" : "bg-slate-200"
                               }`}
                             />
                             <p

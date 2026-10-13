@@ -31,7 +31,7 @@ export function MatchRing({ score, size = 60 }: { score: number; size?: number }
           strokeWidth={grosor}
           strokeDasharray={circunferencia}
           strokeDashoffset={circunferencia * (1 - valor / 100)}
-          className="stroke-slate-500"
+          className="stroke-acento"
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-slate-700">
@@ -80,8 +80,61 @@ export function BotonPostular({
     <form action={postularseAction}>
       <input type="hidden" name="vacanteId" value={vacanteId} />
       <input type="hidden" name="redirect" value={volverA} />
-      <button className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
+      <button className="rounded-full bg-acento px-4 py-2 text-sm font-semibold text-marca hover:bg-acento-hover">
         {texto}
+      </button>
+    </form>
+  );
+}
+
+// Buscador en forma de píldora (cargo + ubicación) que filtra /recomendaciones.
+export function BuscadorVacantes({
+  q = "",
+  ciudad = "",
+  total,
+}: {
+  q?: string;
+  ciudad?: string;
+  total?: number;
+}) {
+  return (
+    <form
+      action="/recomendaciones"
+      className="flex flex-col gap-2 rounded-3xl border border-slate-200 bg-white p-2 shadow-sm sm:flex-row sm:items-center sm:rounded-full"
+    >
+      <label className="flex flex-1 items-center gap-2 px-4 py-2">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden className="h-5 w-5 shrink-0 text-slate-400">
+          <rect x="3" y="6" width="14" height="10" rx="2" />
+          <path d="M7.5 6V4.5h5V6" strokeLinejoin="round" />
+        </svg>
+        <span className="sr-only">Cargo o profesión</span>
+        <input
+          name="q"
+          defaultValue={q}
+          placeholder="Buscar por cargo o profesión"
+          className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+        />
+      </label>
+      <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
+      <label className="flex flex-1 items-center gap-2 px-4 py-2">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden className="h-5 w-5 shrink-0 text-slate-400">
+          <path d="M10 17s5-4.6 5-8.5a5 5 0 0 0-10 0C5 12.4 10 17 10 17Z" strokeLinejoin="round" />
+          <circle cx="10" cy="8.5" r="1.8" />
+        </svg>
+        <span className="sr-only">Ubicación</span>
+        <input
+          name="ciudad"
+          defaultValue={ciudad}
+          placeholder="Buscar por ubicación"
+          className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+        />
+      </label>
+      <button className="flex items-center justify-center gap-2 rounded-full bg-acento px-5 py-2.5 text-sm font-semibold text-marca hover:bg-acento-hover">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="h-4 w-4">
+          <circle cx="9" cy="9" r="5.5" />
+          <path d="m13.5 13.5 3 3" strokeLinecap="round" />
+        </svg>
+        {total != null ? `Buscar en ${total} ${total === 1 ? "vacante" : "vacantes"}` : "Buscar empleo"}
       </button>
     </form>
   );

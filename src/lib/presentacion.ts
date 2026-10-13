@@ -67,3 +67,31 @@ export const ESTADOS_POSTULACION = [
 export function estadoLabel(clave: string): string {
   return ESTADOS_POSTULACION.find((e) => e.clave === clave)?.etiqueta ?? clave;
 }
+
+// Compara sin mayúsculas ni tildes ("Medellín" encuentra "Medellin").
+function plano(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+// Filtro del buscador: `q` busca en cargo, empresa, requisitos y descripción;
+// `ciudad` en la ciudad de la vacante. Vacíos no filtran.
+export function filtrarVacantes<
+  T extends {
+    titulo: string;
+    empresa: string;
+    requisitos?: string | null;
+    descripcion?: string | null;
+    ciudad?: string | null;
+  },
+>(vacantes: T[], q?: string, ciudad?: string): T[] {
+  const texto = plano(q ?? "");
+  const lugar = plano(ciudad ?? "");
+  return vacantes.filter(
+    (v) =>
+      (!texto ||
+        [v.titulo, v.empresa, v.requisitos ?? "", v.descripcion ?? ""].some((c) =>
+          plano(c).includes(texto)
+        )) &&
+      (!lugar || plano(v.ciudad ?? "").includes(lugar))
+  );
+}

@@ -3,9 +3,9 @@
 import { requireCandidato } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildRecommendations, parseRequisitos } from "@/lib/recommender";
-import { detalleVacante, explicarCoincidencias } from "@/lib/presentacion";
+import { detalleVacante, explicarCoincidencias, filtrarVacantes } from "@/lib/presentacion";
 import { Alert, Card } from "@/components/ui";
-import { BotonPostular, MatchRing } from "@/components/vacantes";
+import { BotonPostular, BuscadorVacantes, MatchRing } from "@/components/vacantes";
 import type { Modalidad } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ const DIMENSIONES = [
 export default async function RecomendacionesPage({
   searchParams,
 }: {
-  searchParams: { ok?: string; error?: string };
+  searchParams: { ok?: string; error?: string; q?: string; ciudad?: string };
 }) {
   const candidato = await requireCandidato();
 
@@ -34,6 +34,7 @@ export default async function RecomendacionesPage({
   const yaPostulado = new Set(postulaciones.map((p) => p.vacanteId));
   const nombres = habilidades.map((h) => h.nombre);
 
+  const filtrando = !!(searchParams.q?.trim() || searchParams.ciudad?.trim());
   const recomendaciones = buildRecommendations(
     {
       habilidades: nombres,
@@ -42,7 +43,7 @@ export default async function RecomendacionesPage({
       modalidad: preferencia?.modalidad as Modalidad | null,
       ciudad: preferencia?.ubicacion,
     },
-    vacantes
+    filtrarVacantes(vacantes, searchParams.q, searchParams.ciudad)
   );
 
   return (
@@ -51,7 +52,7 @@ export default async function RecomendacionesPage({
       <p className="mt-1 text-sm text-slate-500">
         Ordenadas por compatibilidad con tu perfil y preferencias.
       </p>
-      <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm leading-relaxed text-slate-700">
+      <div className="mt-6 rounded-xl border border-acento/30 bg-acento-suave px-5 py-4 text-sm leading-relaxed text-slate-700">
         <strong className="text-slate-900">¿Qué significa el porcentaje (Match Score)?</strong> Es
         la compatibilidad entre tu perfil y cada vacante, calculada en tiempo real. Considera tus
         habilidades (50%), rango salarial (20%), modalidad preferida (20%) y ciudad (10%). El
@@ -60,14 +61,30 @@ export default async function RecomendacionesPage({
         resultado. Cada vacante explica qué habilidades coinciden y cuáles podrías fortalecer.
       </div>
 
+      <div className="mt-6">
+        <BuscadorVacantes q={searchParams.q} ciudad={searchParams.ciudad} />
+      </div>
+      {filtrando && (
+        <p className="mt-3 text-sm text-slate-500">
+          {recomendaciones.length} de {vacantes.length} vacantes coinciden con tu búsqueda ·{" "}
+          <a href="/recomendaciones" className="font-medium text-acento-texto hover:underline">
+            Quitar filtros
+          </a>
+        </p>
+      )}
+
       <div className="mt-4 space-y-2">
         {searchParams.ok && <Alert message={searchParams.ok} tone="ok" />}
         {searchParams.error && <Alert message={searchParams.error} />}
       </div>
 
-      {vacantes.length === 0 ? (
+      {recomendaciones.length === 0 ? (
         <Card className="mt-6">
-          <p className="text-sm text-slate-500">No hay vacantes en el catálogo todavía.</p>
+          <p className="text-sm text-slate-500">
+            {filtrando
+              ? "Ninguna vacante coincide con tu búsqueda. Prueba con otros términos."
+              : "No hay vacantes en el catálogo todavía."}
+          </p>
         </Card>
       ) : (
         <ul className="mt-6 grid gap-4 md:grid-cols-2">
@@ -101,7 +118,7 @@ export default async function RecomendacionesPage({
                 </p>
 
                 <details className="group mt-4 text-sm">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-blue-700 [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-acento-texto [&::-webkit-details-marker]:hidden">
                     <span className="text-xs transition-transform group-open:rotate-90">▶</span>
                     Cómo se calcula tu compatibilidad
                   </summary>
@@ -118,7 +135,7 @@ export default async function RecomendacionesPage({
                           </div>
                           <div className="mt-1 h-1.5 rounded-full bg-slate-100">
                             <div
-                              className="h-1.5 rounded-full bg-blue-600"
+                              className="h-1.5 rounded-full bg-acento"
                               style={{ width: `${valor}%` }}
                             />
                           </div>
