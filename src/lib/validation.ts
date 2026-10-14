@@ -4,8 +4,12 @@ import { z } from "zod";
 
 export const registroSchema = z
   .object({
-    email: z.string().email("Email inválido"),
-    password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+    // El correo se guarda en minúsculas: "Ana@Mail.com" y "ana@mail.com" son la misma cuenta.
+    email: z.string().trim().toLowerCase().email("Email inválido"),
+    password: z
+      .string()
+      .min(8, "La contraseña debe tener al menos 8 caracteres")
+      .max(128, "La contraseña no puede superar 128 caracteres"),
     confirm: z.string(),
   })
   .refine((d) => d.password === d.confirm, {
@@ -14,8 +18,8 @@ export const registroSchema = z
   });
 
 export const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(1, "Ingresa tu contraseña"),
+  email: z.string().trim().toLowerCase().email("Email inválido"),
+  password: z.string().min(1, "Ingresa tu contraseña").max(128, "Credenciales inválidas"),
 });
 
 // Campo de texto opcional: "" se trata como ausente.
