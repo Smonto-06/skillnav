@@ -52,7 +52,7 @@ export default async function PerfilPage({
         <h2 className="mb-2 font-semibold">Completitud del perfil</h2>
         <div className="h-3 w-full rounded-full bg-slate-200">
           <div
-            className="h-3 rounded-full bg-blue-500 transition-all"
+            className="h-3 rounded-full bg-acento transition-all"
             style={{ width: `${porcentaje}%` }}
           />
         </div>
@@ -99,7 +99,7 @@ export default async function PerfilPage({
           </ul>
         )}
         <details>
-          <summary className="cursor-pointer text-sm text-blue-600 hover:underline">+ Agregar educación</summary>
+          <summary className="cursor-pointer text-sm text-acento-texto hover:underline">+ Agregar educación</summary>
           <form action={agregarEducacionAction} className="mt-3 space-y-3">
             <Field label="Institución">
               <input name="institucion" required className={inputClass} />
@@ -130,7 +130,7 @@ export default async function PerfilPage({
                     )}
                   </div>
                   <div className="ml-4 flex shrink-0 gap-2">
-                    <a href={`/perfil/experiencia/${e.id}`} className="text-blue-500 hover:underline">
+                    <a href={`/perfil/experiencia/${e.id}`} className="text-acento-texto hover:underline">
                       Editar
                     </a>
                     <form action={eliminarExperienciaAction}>
@@ -144,7 +144,7 @@ export default async function PerfilPage({
           </ul>
         )}
         <details>
-          <summary className="cursor-pointer text-sm text-blue-600 hover:underline">+ Agregar experiencia</summary>
+          <summary className="cursor-pointer text-sm text-acento-texto hover:underline">+ Agregar experiencia</summary>
           <form action={agregarExperienciaAction} className="mt-3 space-y-3">
             <Field label="Empresa">
               <input name="empresa" required className={inputClass} />
@@ -178,7 +178,7 @@ export default async function PerfilPage({
           </ul>
         )}
         <details>
-          <summary className="cursor-pointer text-sm text-blue-600 hover:underline">+ Agregar habilidad</summary>
+          <summary className="cursor-pointer text-sm text-acento-texto hover:underline">+ Agregar habilidad</summary>
           <form action={agregarHabilidadAction} className="mt-3 flex gap-3 items-end">
             <Field label="Nombre">
               <input name="nombre" required className={inputClass} />

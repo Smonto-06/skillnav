@@ -32,7 +32,7 @@ export default async function LoginPage({
       </Card>
       <p className="mt-4 text-sm text-slate-600">
         ¿No tienes cuenta?{" "}
-        <Link href="/registro" className="text-blue-600 hover:underline">
+        <Link href="/registro" className="text-acento-texto hover:underline">
           Regístrate
         </Link>
       </p>

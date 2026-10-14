@@ -35,7 +35,7 @@ export default async function RegistroPage({
       </Card>
       <p className="mt-4 text-sm text-slate-600">
         ¿Ya tienes cuenta?{" "}
-        <Link href="/login" className="text-blue-600 hover:underline">
+        <Link href="/login" className="text-acento-texto hover:underline">
           Inicia sesión
         </Link>
       </p>
