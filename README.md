@@ -36,6 +36,33 @@ Abrir http://localhost:3000
 | `/recomendaciones` | Vacantes recomendadas ordenadas por compatibilidad |
 | `/postulaciones` | Historial de postulaciones |
 
+## Motor de compatibilidad (Match Score)
+
+El puntaje de cada vacante (`src/lib/scoring.ts`) combina seis dimensiones:
+
+| Dimension | Peso | Que mide |
+|---|---|---|
+| Habilidades | 40% | Requisitos cubiertos, ponderados por el nivel y los anos declarados |
+| Afinidad de rol | 20% | Titular y cargos del candidato frente al rol de la vacante |
+| Experiencia | 15% | Anos de experiencia relevante frente al minimo de la vacante |
+| Salario | 10% | Salario de la vacante dentro del rango esperado |
+| Modalidad | 10% | Presencial / remoto / hibrido |
+| Ubicacion | 5% | Ciudad (no aplica en remoto) |
+
+La taxonomia (`src/lib/taxonomia.ts`) resuelve la ambiguedad del texto libre:
+sinonimos (Node = Node.js = NodeJS), equivalencias (PostgreSQL cubre SQL, Next.js
+cubre React), habilidades afines con credito parcial (MySQL ~ PostgreSQL) y areas
+profesionales (un perfil Full Stack cubre una vacante Backend). Las tecnologias
+mencionadas en el resumen o en las funciones de un cargo reciben credito parcial.
+
+## Base de datos en despliegue
+
+`npm run build` ejecuta `prisma db push` antes de compilar, asi que los cambios
+del esquema llegan solos a la base de datos al desplegar en Vercel. Los cambios
+deben ser aditivos (campos opcionales o con valor por defecto): si un cambio
+implica perdida de datos, `db push` falla y el despliegue se detiene sin tocar
+produccion.
+
 ## Pruebas
 
 ```bash

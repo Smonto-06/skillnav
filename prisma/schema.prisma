@@ -11,29 +11,37 @@ datasource db {
 }
 
 model Candidato {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  passwordHash  String
-  nombre        String?
-  ciudad        String?
-  contacto      String?
+  id             String        @id @default(cuid())
+  email          String        @unique
+  passwordHash   String
+  nombre         String?
+  ciudad         String?
+  contacto       String?
   disponibilidad String?
-  educacion     Educacion[]
-  experiencia   Experiencia[]
-  habilidades   Habilidad[]
-  preferencia   Preferencia?
-  postulaciones Postulacion[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  /// Titular profesional, p. ej. "Desarrollador Full Stack". Define el rol en el scoring.
+  titular        String?
+  /// Resumen o perfil profesional (2-5 líneas).
+  resumen        String?
+  linkedin       String?
+  nivelIngles    NivelIdioma?
+  educacion      Educacion[]
+  experiencia    Experiencia[]
+  habilidades    Habilidad[]
+  preferencia    Preferencia?
+  postulaciones  Postulacion[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }
 
 model Educacion {
-  id          String    @id @default(cuid())
-  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  id          String          @id @default(cuid())
+  candidato   Candidato       @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
   candidatoId String
   institucion String
   titulo      String
   anio        Int?
+  nivel       NivelEducativo?
+  enCurso     Boolean         @default(false)
 }
 
 model Experiencia {
@@ -44,49 +52,56 @@ model Experiencia {
   cargo       String
   fechaInicio DateTime?
   fechaFin    DateTime?
+  /// Cargo actual: el tiempo se cuenta hasta hoy.
+  actual      Boolean   @default(false)
   descripcion String?
 }
 
 model Habilidad {
-  id          String    @id @default(cuid())
-  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  id          String          @id @default(cuid())
+  candidato   Candidato       @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
   candidatoId String
   nombre      String
-  tipo        TipoHabilidad @default(TECNICA)
+  tipo        TipoHabilidad   @default(TECNICA)
+  nivel       NivelHabilidad?
+  /// Años de experiencia usando la habilidad.
+  anios       Int?
 }
 
 model Preferencia {
-  id            String    @id @default(cuid())
-  candidato     Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
-  candidatoId   String    @unique
-  salarioMin    Int?
-  salarioMax    Int?
-  modalidad     Modalidad?
-  ubicacion     String?
+  id             String     @id @default(cuid())
+  candidato      Candidato  @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId    String     @unique
+  salarioMin     Int?
+  salarioMax     Int?
+  modalidad      Modalidad?
+  ubicacion      String?
   disponibilidad String?
 }
 
 model Vacante {
-  id            String        @id @default(cuid())
-  titulo        String
-  empresa       String
-  descripcion   String?
-  requisitos    String?
-  salario       Int?
-  modalidad     Modalidad?
-  ciudad        String?
-  postulaciones Postulacion[]
-  createdAt     DateTime      @default(now())
+  id             String        @id @default(cuid())
+  titulo         String
+  empresa        String
+  descripcion    String?
+  requisitos     String?
+  /// Años de experiencia mínimos que pide la vacante.
+  experienciaMin Int?
+  salario        Int?
+  modalidad      Modalidad?
+  ciudad         String?
+  postulaciones  Postulacion[]
+  createdAt      DateTime      @default(now())
 }
 
 model Postulacion {
-  id          String          @id @default(cuid())
-  candidato   Candidato       @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  id          String            @id @default(cuid())
+  candidato   Candidato         @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
   candidatoId String
-  vacante     Vacante         @relation(fields: [vacanteId], references: [id], onDelete: Cascade)
+  vacante     Vacante           @relation(fields: [vacanteId], references: [id], onDelete: Cascade)
   vacanteId   String
   estado      EstadoPostulacion @default(POSTULADO)
-  fecha       DateTime        @default(now())
+  fecha       DateTime          @default(now())
 }
 
 enum TipoHabilidad {
@@ -104,5 +119,33 @@ enum EstadoPostulacion {
   POSTULADO
   EN_REVISION
   ENTREVISTA
+  OFERTA
   DESCARTADO
+}
+
+enum NivelHabilidad {
+  BASICO
+  INTERMEDIO
+  AVANZADO
+  EXPERTO
+}
+
+enum NivelEducativo {
+  BACHILLER
+  TECNICO
+  TECNOLOGO
+  PROFESIONAL
+  ESPECIALIZACION
+  MAESTRIA
+  DOCTORADO
+}
+
+enum NivelIdioma {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+  NATIVO
 }

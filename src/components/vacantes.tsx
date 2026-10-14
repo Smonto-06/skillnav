@@ -139,3 +139,40 @@ export function BuscadorVacantes({
     </form>
   );
 }
+
+const ESTILO_REQUISITO = {
+  cumple: "border-acento/40 bg-acento-suave text-acento-texto",
+  parcial: "border-amber-200 bg-amber-50 text-amber-800",
+  falta: "border-slate-200 bg-white text-slate-500",
+} as const;
+
+const MARCA_REQUISITO = { cumple: "Cumple", parcial: "Parcial", falta: "Falta" } as const;
+
+// Requisitos de la vacante evaluados contra el perfil (cumple / parcial / falta).
+export function RequisitosVacante({
+  requisitos,
+}: {
+  requisitos: { requisito: string; estado: "cumple" | "parcial" | "falta"; motivo: string }[];
+}) {
+  if (requisitos.length === 0) return null;
+  return (
+    <ul className="flex flex-wrap gap-1.5" aria-label="Requisitos de la vacante">
+      {requisitos.map((r) => (
+        <li
+          key={r.requisito}
+          title={r.motivo}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${ESTILO_REQUISITO[r.estado]}`}
+        >
+          <span
+            aria-hidden
+            className={`h-1.5 w-1.5 rounded-full ${
+              r.estado === "cumple" ? "bg-acento" : r.estado === "parcial" ? "bg-amber-500" : "bg-slate-300"
+            }`}
+          />
+          {r.requisito}
+          <span className="sr-only">: {MARCA_REQUISITO[r.estado]}. {r.motivo}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
