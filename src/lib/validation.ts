@@ -86,6 +86,10 @@ export const experienciaSchema = z
   .refine((d) => d.fechaInicio <= new Date(), {
     message: "La fecha de inicio no puede estar en el futuro",
     path: ["fechaInicio"],
+  })
+  .refine((d) => d.actual || !d.fechaFin || d.fechaFin <= new Date(), {
+    message: "La fecha de finalización no puede estar en el futuro; si sigues en el cargo, marca que es tu cargo actual",
+    path: ["fechaFin"],
   });
 
 export const habilidadSchema = z.object({

@@ -19,7 +19,7 @@ import {
   detectarRoles,
   resolverHabilidad,
 } from "./taxonomia";
-import { Periodo, aniosDe, formatoDuracion } from "./trayectoria";
+import { Periodo, aniosTotales, formatoDuracion } from "./trayectoria";
 
 export type Modalidad = "PRESENCIAL" | "REMOTO" | "HIBRIDO";
 export type NivelHabilidad = "BASICO" | "INTERMEDIO" | "AVANZADO" | "EXPERTO";
@@ -304,8 +304,9 @@ function evaluarRol(areasVacante: Area[], cob: Map<Area, Cobertura>): { valor: n
   return { valor, motivo: `Rol ${nombres}: cubierto en parte por ${fuente}.` };
 }
 
-// Años relevantes: los cargos del área de la vacante cuentan completos,
-// los de otras áreas a la mitad (la experiencia laboral general también suma).
+// Años relevantes: los cargos del área de la vacante cuentan completos y el resto
+// del tiempo trabajado (otras áreas) a la mitad. Los periodos se unen antes de
+// sumar, así dos cargos simultáneos no cuentan doble.
 function evaluarExperiencia(
   perfil: PerfilScoring,
   vacante: VacanteScoring,
@@ -313,13 +314,15 @@ function evaluarExperiencia(
   ahora: Date
 ): { valor: number; motivo: string } {
   const exps = perfil.experiencias ?? [];
-  const relevantes = exps.reduce((total, e) => {
+  const esAfin = (e: ExperienciaPerfil) => {
     const areas = detectarRoles(e.cargo).flatMap((r) => r.areas);
-    const afin =
-      areasVacante.length === 0 ||
-      areas.some((a) => areasVacante.some((v) => adyacencia(a, v) >= 0.5));
-    return total + aniosDe(e, ahora) * (afin ? 1 : 0.5);
-  }, 0);
+    return (
+      areasVacante.length === 0 || areas.some((a) => areasVacante.some((v) => adyacencia(a, v) >= 0.5))
+    );
+  };
+  const delArea = aniosTotales(exps.filter(esAfin), ahora);
+  const total = aniosTotales(exps, ahora);
+  const relevantes = delArea + 0.5 * Math.max(0, total - delArea);
   const anios = formatoDuracion(relevantes);
   const min = vacante.experienciaMin ?? 0;
   const pide = `Pide ${min} ${min === 1 ? "año" : "años"}`;

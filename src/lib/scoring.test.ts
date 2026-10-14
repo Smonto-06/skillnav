@@ -186,6 +186,29 @@ describe("matchScore · experiencia relevante", () => {
     expect(r.desglose.experiencia).toBeCloseTo(0.5, 1);
   });
 
+  it("dos cargos simultáneos del área no cuentan doble", () => {
+    const r = evaluar(
+      {
+        habilidades: [],
+        experiencias: [
+          { cargo: "Desarrollador Backend", inicio: hace(2), fin: AHORA },
+          { cargo: "Backend freelance", inicio: hace(2), fin: AHORA },
+        ],
+      },
+      { titulo: "Backend Developer", requisitos: [], experienciaMin: 4 }
+    );
+    expect(r.desglose.experiencia).toBeCloseTo(0.5, 1);
+  });
+
+  it("una fecha de finalización futura no suma experiencia", () => {
+    const futuro = new Date(AHORA.getTime() + 5 * 365.25 * 24 * 3600 * 1000);
+    const r = evaluar(
+      { habilidades: [], experiencias: [{ cargo: "Desarrollador Backend", inicio: hace(1), fin: futuro }] },
+      { titulo: "Backend Developer", requisitos: [], experienciaMin: 2 }
+    );
+    expect(r.desglose.experiencia).toBeCloseTo(0.5, 1);
+  });
+
   it("sin mínimo exigido no penaliza", () => {
     const r = evaluar({ habilidades: [] }, { requisitos: [] });
     expect(r.desglose.experiencia).toBe(1);

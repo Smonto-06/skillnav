@@ -9,11 +9,17 @@ export interface Periodo {
 
 const MS_ANIO = 365.25 * 24 * 60 * 60 * 1000;
 
+// Fin efectivo de un periodo: hoy si es el cargo actual, y nunca después de hoy
+// (una fecha futura no puede sumar experiencia que aún no existe).
+function finEfectivo(p: Periodo, ahora: Date): number {
+  const fin = p.actual || !p.fin ? ahora : p.fin;
+  return Math.min(fin.getTime(), ahora.getTime());
+}
+
 // Años de un periodo (0 si no tiene fecha de inicio o las fechas son inválidas).
 export function aniosDe(p: Periodo, ahora = new Date()): number {
   if (!p.inicio) return 0;
-  const fin = p.actual || !p.fin ? ahora : p.fin;
-  return Math.max(0, (fin.getTime() - p.inicio.getTime()) / MS_ANIO);
+  return Math.max(0, (finEfectivo(p, ahora) - p.inicio.getTime()) / MS_ANIO);
 }
 
 // Años totales sin contar dos veces los periodos que se solapan
@@ -21,7 +27,7 @@ export function aniosDe(p: Periodo, ahora = new Date()): number {
 export function aniosTotales(periodos: Periodo[], ahora = new Date()): number {
   const tramos = periodos
     .filter((p) => p.inicio)
-    .map((p) => [p.inicio!.getTime(), (p.actual || !p.fin ? ahora : p.fin).getTime()] as const)
+    .map((p) => [p.inicio!.getTime(), finEfectivo(p, ahora)] as const)
     .filter(([a, b]) => b > a)
     .sort((x, y) => x[0] - y[0]);
   let total = 0;
