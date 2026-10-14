@@ -7,6 +7,12 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { establecerSesion, cerrarSesion } from "@/lib/auth";
 import { registroSchema, loginSchema } from "@/lib/validation";
 
+// Búsqueda sin distinguir mayúsculas: las cuentas creadas antes de normalizar el
+// correo pudieron guardarse con mayúsculas ("Ana@Mail.com").
+function buscarPorEmail(email: string) {
+  return prisma.candidato.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
+}
+
 function conError(ruta: string, mensaje: string): never {
   redirect(`${ruta}?error=${encodeURIComponent(mensaje)}`);
 }
@@ -22,7 +28,7 @@ export async function registrarAction(formData: FormData) {
   }
 
   const { email, password } = parsed.data;
-  const existente = await prisma.candidato.findUnique({ where: { email } });
+  const existente = await buscarPorEmail(email);
   if (existente) {
     conError("/registro", "Ya existe una cuenta con ese email");
   }
@@ -45,7 +51,7 @@ export async function loginAction(formData: FormData) {
   }
 
   const { email, password } = parsed.data;
-  const candidato = await prisma.candidato.findUnique({ where: { email } });
+  const candidato = await buscarPorEmail(email);
   if (!candidato || !verifyPassword(password, candidato.passwordHash)) {
     conError("/login", "Credenciales inválidas");
   }

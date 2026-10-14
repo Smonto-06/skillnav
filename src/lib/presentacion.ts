@@ -24,38 +24,27 @@ export function detalleVacante(v: {
     .join(" · ");
 }
 
-function norm(s: string): string {
-  return s.trim().toLowerCase();
-}
-
-// Separa los requisitos de la vacante en los que el candidato ya cubre y los que le faltan.
-// Usa la misma normalización que el scoring para que el texto y el porcentaje coincidan.
-export function coincidencias(
-  habilidades: string[],
-  requisitos: string[]
-): { coinciden: string[]; faltan: string[] } {
-  const propias = new Set(habilidades.map(norm));
-  const coinciden = requisitos.filter((r) => propias.has(norm(r)));
-  const faltan = requisitos.filter((r) => !propias.has(norm(r)));
-  return { coinciden, faltan };
-}
-
-// Frase corta que explica el componente de habilidades del Match Score.
-export function explicarCoincidencias(habilidades: string[], requisitos: string[]): string {
+// Frase corta que resume cómo el perfil cubre los requisitos de la vacante.
+export function resumenRequisitos(
+  requisitos: { requisito: string; estado: "cumple" | "parcial" | "falta" }[]
+): string {
   if (requisitos.length === 0) return "Esta vacante no exige habilidades específicas.";
-  const { coinciden, faltan } = coincidencias(habilidades, requisitos);
-  if (coinciden.length === 0) {
-    return `Aún no hay coincidencias directas; esta vacante requiere ${faltan.join(", ")}.`;
+  const de = (e: string) => requisitos.filter((r) => r.estado === e).map((r) => r.requisito);
+  const [cumple, parcial, falta] = [de("cumple"), de("parcial"), de("falta")];
+  if (cumple.length === requisitos.length) {
+    return requisitos.length === 1 ? "Cumples el requisito de la vacante." : `Cumples los ${requisitos.length} requisitos de la vacante.`;
   }
-  if (faltan.length === 0) {
-    return `Cumples todos los requisitos: ${coinciden.join(", ")}.`;
+  if (falta.length === requisitos.length) {
+    return `Aún no hay coincidencias directas; esta vacante requiere ${falta.join(", ")}.`;
   }
-  return `Coincides en ${coinciden.join(", ")}; podrías fortalecer ${faltan.join(", ")}.`;
+  const partes = cumple.length ? [`Cumples ${cumple.length} de ${requisitos.length} requisitos`] : [];
+  if (parcial.length) partes.push(`cubres en parte ${parcial.join(", ")}`);
+  if (falta.length) partes.push(`podrías fortalecer ${falta.join(", ")}`);
+  const frase = partes.join("; ") + ".";
+  return frase.charAt(0).toUpperCase() + frase.slice(1);
 }
 
 // Estados de postulación tal como se muestran al candidato, en orden de avance.
-// OFERTA aún no existe en el enum de Prisma: se muestra para completar el embudo
-// y empezará a contar cuando se agregue ese estado a la BD.
 export const ESTADOS_POSTULACION = [
   { clave: "POSTULADO", etiqueta: "Enviada", plural: "Enviadas" },
   { clave: "EN_REVISION", etiqueta: "En revisión", plural: "En revisión" },
@@ -95,3 +84,36 @@ export function filtrarVacantes<
       (!lugar || plano(v.ciudad ?? "").includes(lugar))
   );
 }
+
+// Tipos de formación en orden de nivel (el orden define el desplegable).
+// Los "complementarios" se muestran aparte de la formación académica.
+export const NIVEL_EDUCATIVO_LABEL: Record<string, string> = {
+  BACHILLER: "Bachiller",
+  CURSO: "Curso corto",
+  CERTIFICACION: "Certificación",
+  DIPLOMADO: "Diplomado",
+  BOOTCAMP: "Bootcamp",
+  TECNICO: "Técnico",
+  TECNOLOGO: "Tecnólogo",
+  PROFESIONAL: "Profesional (pregrado)",
+  ESPECIALIZACION: "Especialización",
+  MAESTRIA: "Maestría",
+  DOCTORADO: "Doctorado",
+};
+
+export const FORMACION_COMPLEMENTARIA = new Set(["CURSO", "CERTIFICACION", "DIPLOMADO", "BOOTCAMP"]);
+
+// Rango para ordenar de mayor a menor nivel.
+export function rangoEducativo(nivel?: string | null): number {
+  return nivel ? Object.keys(NIVEL_EDUCATIVO_LABEL).indexOf(nivel) : -1;
+}
+
+export const NIVEL_IDIOMA_LABEL: Record<string, string> = {
+  A1: "A1 · Principiante",
+  A2: "A2 · Básico",
+  B1: "B1 · Intermedio",
+  B2: "B2 · Intermedio alto",
+  C1: "C1 · Avanzado",
+  C2: "C2 · Maestría",
+  NATIVO: "Nativo",
+};

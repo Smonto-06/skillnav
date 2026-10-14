@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { getCandidatoActual } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildRecommendations, parseRequisitos } from "@/lib/recommender";
+import { buildRecommendations } from "@/lib/recommender";
+import { cargarPerfilScoring } from "@/lib/perfil-scoring";
 import { completitud } from "@/lib/completeness";
-import { explicarCoincidencias, detalleVacante, modalidadLabel } from "@/lib/presentacion";
-import type { Modalidad } from "@/lib/scoring";
+import { detalleVacante, modalidadLabel, resumenRequisitos } from "@/lib/presentacion";
 import { Alert, Card } from "@/components/ui";
 import {
   BotonPostular,
@@ -14,6 +14,7 @@ import {
   FlechaDerecha,
   FlechaDiagonal,
   MatchRing,
+  RequisitosVacante,
 } from "@/components/vacantes";
 
 export const dynamic = "force-dynamic";
@@ -33,12 +34,13 @@ export default async function Home({
   const candidato = await getCandidatoActual();
   if (!candidato) return <Presentacion />;
 
-  const [educacionCount, experienciaCount, habilidades, preferencia, vacantes, postulaciones] =
+  const [educacionCount, experienciaCount, habilidadesCount, preferencia, { perfil }, vacantes, postulaciones] =
     await Promise.all([
       prisma.educacion.count({ where: { candidatoId: candidato.id } }),
       prisma.experiencia.count({ where: { candidatoId: candidato.id } }),
-      prisma.habilidad.findMany({ where: { candidatoId: candidato.id } }),
+      prisma.habilidad.count({ where: { candidatoId: candidato.id } }),
       prisma.preferencia.findUnique({ where: { candidatoId: candidato.id } }),
+      cargarPerfilScoring(candidato),
       prisma.vacante.findMany({ orderBy: { createdAt: "asc" } }),
       prisma.postulacion.findMany({
         where: { candidatoId: candidato.id },
@@ -46,25 +48,17 @@ export default async function Home({
       }),
     ]);
 
-  const nombres = habilidades.map((h) => h.nombre);
-  const mejores = buildRecommendations(
-    {
-      habilidades: nombres,
-      salarioMin: preferencia?.salarioMin,
-      salarioMax: preferencia?.salarioMax,
-      modalidad: preferencia?.modalidad as Modalidad | null,
-      ciudad: preferencia?.ubicacion,
-    },
-    vacantes
-  ).slice(0, 3);
+  const mejores = buildRecommendations(perfil, vacantes).slice(0, 3);
 
   const { porcentaje, faltantes } = completitud({
     nombre: candidato.nombre,
     ciudad: candidato.ciudad,
     contacto: candidato.contacto,
+    titular: candidato.titular,
+    resumen: candidato.resumen,
     educacionCount,
     experienciaCount,
-    habilidadesCount: habilidades.length,
+    habilidadesCount,
     tienePreferencia: !!preferencia,
   });
 
@@ -117,7 +111,7 @@ export default async function Home({
             </Card>
           ) : (
             <ul className="space-y-4">
-              {mejores.map(({ vacante, score }) => (
+              {mejores.map(({ vacante, score, requisitos, motivoRol }) => (
                 <li key={vacante.id}>
                   <Card>
                     <div className="flex items-start justify-between gap-4">
@@ -135,9 +129,9 @@ export default async function Home({
                       <MatchRing score={score} />
                     </div>
                     <div className="mt-4 border-t border-slate-100 pt-4">
-                      <p className="text-sm text-slate-600">
-                        {explicarCoincidencias(nombres, parseRequisitos(vacante.requisitos))}
-                      </p>
+                      <RequisitosVacante requisitos={requisitos} />
+                      <p className="mt-3 text-sm text-slate-600">{resumenRequisitos(requisitos)}</p>
+                      <p className="mt-1 text-xs text-slate-500">{motivoRol}</p>
                       <div className="mt-4 flex justify-end">
                         <BotonPostular
                           vacanteId={vacante.id}

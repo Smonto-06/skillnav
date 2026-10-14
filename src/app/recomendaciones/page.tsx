@@ -2,20 +2,25 @@
 // Lista de vacantes desde BD + puntaje + acción "Postularse" por registro.
 import { requireCandidato } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildRecommendations, parseRequisitos } from "@/lib/recommender";
-import { detalleVacante, explicarCoincidencias, filtrarVacantes } from "@/lib/presentacion";
+import { buildRecommendations } from "@/lib/recommender";
+import { cargarPerfilScoring } from "@/lib/perfil-scoring";
+import { detalleVacante, filtrarVacantes, resumenRequisitos } from "@/lib/presentacion";
 import { Alert, Card } from "@/components/ui";
-import { BotonPostular, BuscadorVacantes, MatchRing } from "@/components/vacantes";
-import type { Modalidad } from "@/lib/scoring";
+import { BotonPostular, BuscadorVacantes, MatchRing, RequisitosVacante } from "@/components/vacantes";
+import { PESOS_DEFAULT } from "@/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
 const DIMENSIONES = [
-  { clave: "skills", etiqueta: "Habilidades", peso: "50%" },
-  { clave: "salario", etiqueta: "Salario", peso: "20%" },
-  { clave: "modalidad", etiqueta: "Modalidad", peso: "20%" },
-  { clave: "ubicacion", etiqueta: "Ubicación", peso: "10%" },
+  { clave: "skills", etiqueta: "Habilidades" },
+  { clave: "rol", etiqueta: "Afinidad de rol" },
+  { clave: "experiencia", etiqueta: "Experiencia" },
+  { clave: "salario", etiqueta: "Salario" },
+  { clave: "modalidad", etiqueta: "Modalidad" },
+  { clave: "ubicacion", etiqueta: "Ubicación" },
 ] as const;
+
+const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 export default async function RecomendacionesPage({
   searchParams,
@@ -24,25 +29,17 @@ export default async function RecomendacionesPage({
 }) {
   const candidato = await requireCandidato();
 
-  const [habilidades, preferencia, vacantes, postulaciones] = await Promise.all([
-    prisma.habilidad.findMany({ where: { candidatoId: candidato.id } }),
-    prisma.preferencia.findUnique({ where: { candidatoId: candidato.id } }),
+  const [{ perfil }, vacantes, postulaciones] = await Promise.all([
+    cargarPerfilScoring(candidato),
     prisma.vacante.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.postulacion.findMany({ where: { candidatoId: candidato.id }, select: { vacanteId: true } }),
   ]);
 
   const yaPostulado = new Set(postulaciones.map((p) => p.vacanteId));
-  const nombres = habilidades.map((h) => h.nombre);
 
   const filtrando = !!(searchParams.q?.trim() || searchParams.ciudad?.trim());
   const recomendaciones = buildRecommendations(
-    {
-      habilidades: nombres,
-      salarioMin: preferencia?.salarioMin,
-      salarioMax: preferencia?.salarioMax,
-      modalidad: preferencia?.modalidad as Modalidad | null,
-      ciudad: preferencia?.ubicacion,
-    },
+    perfil,
     filtrarVacantes(vacantes, searchParams.q, searchParams.ciudad)
   );
 
@@ -54,11 +51,12 @@ export default async function RecomendacionesPage({
       </p>
       <div className="mt-6 rounded-xl border border-acento/30 bg-acento-suave px-5 py-4 text-sm leading-relaxed text-slate-700">
         <strong className="text-slate-900">¿Qué significa el porcentaje (Match Score)?</strong> Es
-        la compatibilidad entre tu perfil y cada vacante, calculada en tiempo real. Considera tus
-        habilidades (50%), rango salarial (20%), modalidad preferida (20%) y ciudad (10%). El
-        porcentaje <strong className="text-slate-900">cambia</strong> según la información que
-        tengas en tu perfil: a más habilidades y preferencias completas, más preciso y útil es el
-        resultado. Cada vacante explica qué habilidades coinciden y cuáles podrías fortalecer.
+        la compatibilidad entre tu hoja de vida y cada vacante, calculada en tiempo real. Evalúa
+        tus habilidades frente a los requisitos (40%) reconociendo sinónimos y equivalencias (por
+        ejemplo, PostgreSQL cubre SQL), la afinidad de tu rol con el cargo (20%; un perfil Full
+        Stack cubre una vacante Backend), tus años de experiencia relevante (15%), el salario
+        (10%), la modalidad (10%) y la ciudad (5%). Mientras más completo esté tu perfil, con
+        nivel y años en cada habilidad y fechas en cada cargo, más preciso es el resultado.
       </div>
 
       <div className="mt-6">
@@ -88,7 +86,7 @@ export default async function RecomendacionesPage({
         </Card>
       ) : (
         <ul className="mt-6 grid gap-4 md:grid-cols-2">
-          {recomendaciones.map(({ vacante, score, desglose }) => (
+          {recomendaciones.map(({ vacante, score, desglose, requisitos, motivoRol, motivoExperiencia }) => (
             <li key={vacante.id} id={vacante.id} className="scroll-mt-6">
               <Card className="h-full">
                 <div className="flex items-start justify-between gap-4">
@@ -110,12 +108,16 @@ export default async function RecomendacionesPage({
                 {vacante.descripcion && (
                   <p className="mt-3 text-sm text-slate-600">{vacante.descripcion}</p>
                 )}
-                {vacante.requisitos && (
-                  <p className="mt-2 text-sm text-slate-500">Requisitos: {vacante.requisitos}</p>
-                )}
-                <p className="mt-3 text-sm text-slate-600">
-                  {explicarCoincidencias(nombres, parseRequisitos(vacante.requisitos))}
-                </p>
+                {vacante.experienciaMin ? (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Experiencia mínima: {vacante.experienciaMin}{" "}
+                    {vacante.experienciaMin === 1 ? "año" : "años"}
+                  </p>
+                ) : null}
+                <div className="mt-3">
+                  <RequisitosVacante requisitos={requisitos} />
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{resumenRequisitos(requisitos)}</p>
 
                 <details className="group mt-4 text-sm">
                   <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-acento-texto [&::-webkit-details-marker]:hidden">
@@ -129,7 +131,8 @@ export default async function RecomendacionesPage({
                         <li key={d.clave}>
                           <div className="flex justify-between text-xs text-slate-500">
                             <span>
-                              {d.etiqueta} <span className="text-slate-400">(peso {d.peso})</span>
+                              {d.etiqueta}{" "}
+                              <span className="text-slate-400">(peso {pct(PESOS_DEFAULT[d.clave])})</span>
                             </span>
                             <span className="font-medium text-slate-700">{valor}%</span>
                           </div>
@@ -143,6 +146,22 @@ export default async function RecomendacionesPage({
                       );
                     })}
                   </ul>
+                  <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs">
+                    {requisitos.map((r) => (
+                      <div key={r.requisito} className="flex gap-2">
+                        <dt className="w-28 shrink-0 font-medium text-slate-700">{r.requisito}</dt>
+                        <dd className="text-slate-500">{r.motivo}</dd>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <dt className="w-28 shrink-0 font-medium text-slate-700">Rol</dt>
+                      <dd className="text-slate-500">{motivoRol}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="w-28 shrink-0 font-medium text-slate-700">Experiencia</dt>
+                      <dd className="text-slate-500">{motivoExperiencia}</dd>
+                    </div>
+                  </dl>
                 </details>
               </Card>
             </li>

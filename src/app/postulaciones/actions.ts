@@ -2,13 +2,13 @@
 // E6 · Postulación simulada.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { requireCandidato } from "@/lib/auth";
 import { z } from "zod";
+import { postular, rutaInterna } from "@/lib/postulacion";
 
 const postularSchema = z.object({
   vacanteId: z.string().cuid("ID de vacante inválido"),
-  redirect: z.string().optional(),
+  redirect: z.string().nullish(),
 });
 
 export async function postularseAction(formData: FormData) {
@@ -23,18 +23,13 @@ export async function postularseAction(formData: FormData) {
   }
 
   const { vacanteId } = parsed.data;
-
-  // Idempotente: no duplicar postulación
-  const existente = await prisma.postulacion.findFirst({
-    where: { candidatoId: candidato.id, vacanteId },
-  });
-  if (!existente) {
-    await prisma.postulacion.create({
-      data: { candidatoId: candidato.id, vacanteId },
-    });
+  const resultado = await postular(candidato.id, vacanteId);
+  if (resultado === "vacante-inexistente") {
+    redirect("/recomendaciones?error=La+vacante+ya+no+est%C3%A1+disponible");
   }
 
   revalidatePath("/postulaciones");
   revalidatePath("/recomendaciones");
-  redirect(parsed.data.redirect || "/postulaciones?ok=Postulado+exitosamente");
+  revalidatePath("/");
+  redirect(rutaInterna(parsed.data.redirect, "/postulaciones?ok=Postulado+exitosamente"));
 }
