@@ -69,9 +69,10 @@ describe("matchScore · caso del monitor: Full Stack frente a vacante Backend", 
   const fullStack = {
     titular: "Desarrollador Full Stack",
     habilidades: [{ nombre: "Node.js", nivel: "AVANZADO" as const }, { nombre: "React" }],
+    experiencias: [{ cargo: "Desarrollador Full Stack", inicio: hace(3), actual: true }],
   };
 
-  it("el rol Full Stack cubre por completo una vacante Backend", () => {
+  it("el rol Full Stack con experiencia cubre por completo una vacante Backend", () => {
     const r = evaluar(fullStack, { titulo: "Backend Developer", requisitos: [] });
     expect(r.desglose.rol).toBe(1);
     expect(r.motivoRol).toContain("Full Stack");
@@ -84,17 +85,74 @@ describe("matchScore · caso del monitor: Full Stack frente a vacante Backend", 
 
   it("al revés, un Backend cubre solo la mitad de una vacante Full Stack", () => {
     const r = evaluar(
-      { titular: "Desarrollador Backend", habilidades: [] },
+      {
+        titular: "Desarrollador Backend",
+        habilidades: [],
+        experiencias: [{ cargo: "Desarrollador Backend", inicio: hace(3), actual: true }],
+      },
       { titulo: "Full Stack Engineer", requisitos: [] }
     );
-    expect(r.desglose.rol).toBeGreaterThanOrEqual(0.5);
-    expect(r.desglose.rol).toBeLessThan(1);
+    expect(r.desglose.rol).toBe(0.5);
+  });
+
+  it("un titular declarado sin experiencia que lo respalde cuenta, pero menos", () => {
+    const r = evaluar({ titular: "Desarrolladora Full Stack", habilidades: [] }, { titulo: "Backend Developer", requisitos: ["Backend"] });
+    expect(r.desglose.rol).toBe(0.85);
+    expect(r.requisitos[0].estado).toBe("cumple");
   });
 
   it("una habilidad escrita como rol ('Full Stack') también cuenta", () => {
     const r = evaluar({ habilidades: ["Full Stack"] }, { titulo: "Backend Developer", requisitos: ["Backend"] });
-    expect(r.desglose.rol).toBe(1);
+    expect(r.desglose.rol).toBe(0.85);
     expect(r.requisitos[0].estado).toBe("cumple");
+  });
+});
+
+describe("matchScore · el tiempo en el cargo pesa", () => {
+  it("una semana como Full Stack apenas acredita el rol", () => {
+    const semana = new Date(AHORA.getTime() - 7 * 24 * 3600 * 1000);
+    const r = evaluar(
+      { habilidades: [], experiencias: [{ cargo: "Desarrollador Full Stack", inicio: semana, fin: AHORA }] },
+      { titulo: "Backend Developer", requisitos: [] }
+    );
+    expect(r.desglose.rol).toBeLessThan(0.5);
+    expect(r.motivoRol).toContain("Menos de un mes");
+  });
+
+  it("dos años o más en el cargo lo acreditan por completo", () => {
+    const r = evaluar(
+      { habilidades: [], experiencias: [{ cargo: "Desarrollador Full Stack", inicio: hace(2.5), actual: true }] },
+      { titulo: "Backend Developer", requisitos: [] }
+    );
+    expect(r.desglose.rol).toBe(1);
+  });
+});
+
+describe("matchScore · más ambigüedades resueltas", () => {
+  it("'Desarrollador Java' se entiende como un rol Backend", () => {
+    const r = evaluar(
+      {
+        titular: "Desarrolladora Backend",
+        habilidades: [],
+        experiencias: [{ cargo: "Desarrolladora Backend", inicio: hace(3), actual: true }],
+      },
+      { titulo: "Desarrollador Java Senior", requisitos: [] }
+    );
+    expect(r.desglose.rol).toBe(1);
+  });
+
+  it("un requisito escrito como frase se separa en sus tecnologías", () => {
+    const r = evaluar(
+      { habilidades: [{ nombre: "React", nivel: "AVANZADO" }, { nombre: "Node.js", nivel: "AVANZADO" }] },
+      { requisitos: ["Experiencia con React y Node.js"] }
+    );
+    expect(r.requisitos[0].estado).toBe("cumple");
+  });
+
+  it("un curso o certificación cuenta como evidencia parcial", () => {
+    const r = evaluar({ habilidades: [], educacion: [{ titulo: "Curso de Docker y Kubernetes" }] }, { requisitos: ["Docker"] });
+    expect(r.requisitos[0].estado).toBe("parcial");
+    expect(r.requisitos[0].motivo).toContain("Curso de Docker");
   });
 });
 

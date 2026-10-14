@@ -8,9 +8,10 @@ export async function cargarPerfilScoring(candidato: {
   titular?: string | null;
   resumen?: string | null;
 }): Promise<{ perfil: PerfilScoring; tienePreferencia: boolean }> {
-  const [habilidades, experiencias, preferencia] = await Promise.all([
+  const [habilidades, experiencias, educacion, preferencia] = await Promise.all([
     prisma.habilidad.findMany({ where: { candidatoId: candidato.id } }),
     prisma.experiencia.findMany({ where: { candidatoId: candidato.id } }),
+    prisma.educacion.findMany({ where: { candidatoId: candidato.id }, select: { titulo: true } }),
     prisma.preferencia.findUnique({ where: { candidatoId: candidato.id } }),
   ]);
   return {
@@ -18,6 +19,7 @@ export async function cargarPerfilScoring(candidato: {
       habilidades: habilidades.map((h) => ({ nombre: h.nombre, nivel: h.nivel, anios: h.anios })),
       titular: candidato.titular,
       resumen: candidato.resumen,
+      educacion,
       experiencias: experiencias.map((e) => ({
         cargo: e.cargo,
         empresa: e.empresa,

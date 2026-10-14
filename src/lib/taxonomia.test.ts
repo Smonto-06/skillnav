@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { areasDeRequisito, clave, cubiertas, detectarRoles, resolverHabilidad } from "./taxonomia";
+import {
+  areasDeCargo,
+  areasDeRequisito,
+  clave,
+  cubiertas,
+  detectarRoles,
+  habilidadesMencionadas,
+  resolverHabilidad,
+  rolesDeCargo,
+} from "./taxonomia";
 
 describe("taxonomia", () => {
   it("clave unifica variantes de escritura", () => {
@@ -30,5 +39,20 @@ describe("taxonomia", () => {
 
   it("reconoce requisitos genéricos de área", () => {
     expect(areasDeRequisito("Experiencia en backend")).toEqual(["backend"]);
+  });
+
+  it("ubica un cargo por la tecnología que nombra", () => {
+    expect(areasDeCargo("Desarrollador Java")).toEqual(["backend"]);
+    expect(areasDeCargo("Desarrollador React")).toEqual(["frontend"]);
+    expect(rolesDeCargo("Desarrollador Web")[0].generico).toBe(true);
+    expect(areasDeCargo("DBA Senior")).toEqual(["datos", "backend"]);
+  });
+
+  it("encuentra tecnologías dentro de una frase", () => {
+    expect(habilidadesMencionadas("Experiencia con React y Node.js").map((s) => s.nombre)).toEqual([
+      "React",
+      "Node.js",
+    ]);
+    expect(habilidadesMencionadas("Soy una persona ágil y excelente")).toEqual([]);
   });
 });

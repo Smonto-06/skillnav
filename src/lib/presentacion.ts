@@ -85,15 +85,28 @@ export function filtrarVacantes<
   );
 }
 
+// Tipos de formación en orden de nivel (el orden define el desplegable).
+// Los "complementarios" se muestran aparte de la formación académica.
 export const NIVEL_EDUCATIVO_LABEL: Record<string, string> = {
   BACHILLER: "Bachiller",
+  CURSO: "Curso corto",
+  CERTIFICACION: "Certificación",
+  DIPLOMADO: "Diplomado",
+  BOOTCAMP: "Bootcamp",
   TECNICO: "Técnico",
   TECNOLOGO: "Tecnólogo",
-  PROFESIONAL: "Profesional",
+  PROFESIONAL: "Profesional (pregrado)",
   ESPECIALIZACION: "Especialización",
   MAESTRIA: "Maestría",
   DOCTORADO: "Doctorado",
 };
+
+export const FORMACION_COMPLEMENTARIA = new Set(["CURSO", "CERTIFICACION", "DIPLOMADO", "BOOTCAMP"]);
+
+// Rango para ordenar de mayor a menor nivel.
+export function rangoEducativo(nivel?: string | null): number {
+  return nivel ? Object.keys(NIVEL_EDUCATIVO_LABEL).indexOf(nivel) : -1;
+}
 
 export const NIVEL_IDIOMA_LABEL: Record<string, string> = {
   A1: "A1 · Principiante",

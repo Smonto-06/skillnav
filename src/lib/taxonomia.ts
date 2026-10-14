@@ -132,7 +132,7 @@ export const HABILIDADES: HabilidadCatalogo[] = [
   h("figma", "Figma", ["diseno"]),
   h("uxui", "Diseño UX/UI", ["diseno"], ["ux", "ui", "uxui", "uiux", "disenoux", "experienciadeusuario"]),
   h("testing", "Pruebas de software", ["qa"], ["testing", "qa", "pruebas", "jest", "cypress", "selenium", "pruebasunitarias", "unittesting"]),
-  h("scrum", "Scrum", ["gestion"], ["agile", "agil", "metodologiasagiles", "kanban"]),
+  h("scrum", "Scrum", ["gestion"], ["agile", "metodologiasagiles", "metodologiaagil", "kanban"]),
 ];
 
 const POR_ID = new Map(HABILIDADES.map((s) => [s.id, s]));
@@ -178,31 +178,59 @@ interface Rol {
 // contiene "fullstack"), así que los alias deben ser específicos.
 const ROLES: Rol[] = [
   { nombre: "Full Stack", alias: ["fullstack"], areas: ["frontend", "backend"] },
-  { nombre: "Backend", alias: ["backend", "backenddeveloper"], areas: ["backend"] },
-  { nombre: "Frontend", alias: ["frontend", "front"], areas: ["frontend"] },
+  {
+    nombre: "Backend",
+    alias: ["backend", "backenddeveloper", "desarrolladordeapis", "apideveloper", "desarrolladordeservicios"],
+    areas: ["backend"],
+  },
+  {
+    nombre: "Frontend",
+    alias: ["frontend", "front", "maquetador", "desarrolladordeinterfaces", "uideveloper"],
+    areas: ["frontend"],
+  },
   {
     nombre: "Datos",
     alias: [
       "analistadedatos", "cientificodedatos", "ingenierodedatos", "dataanalyst", "datascientist",
       "dataengineer", "businessintelligence", "analistabi", "analiticadedatos", "analisisdedatos",
-      "bigdata", "datos",
+      "bigdata", "datos", "machinelearning", "mlengineer", "inteligenciaartificial", "analytics",
     ],
     areas: ["datos"],
   },
   {
+    nombre: "Bases de datos",
+    alias: ["dba", "administradordebasesdedatos", "databaseadministrator", "ingenierodebasesdedatos"],
+    areas: ["datos", "backend"],
+  },
+  {
     nombre: "Cloud / DevOps",
-    alias: ["devops", "cloud", "nube", "sre", "infraestructura", "sitereliability"],
+    alias: ["devops", "cloud", "nube", "sre", "infraestructura", "sitereliability", "sysadmin", "administradordesistemas", "platformengineer"],
     areas: ["cloud"],
   },
-  { nombre: "Móvil", alias: ["movil", "mobile", "android", "ios"], areas: ["movil"] },
-  { nombre: "QA", alias: ["qa", "tester", "calidaddesoftware", "pruebas", "automatizaciondepruebas"], areas: ["qa"] },
-  { nombre: "Diseño UX/UI", alias: ["ux", "ui", "disenador", "designer"], areas: ["diseno"] },
-  { nombre: "Gestión ágil", alias: ["scrummaster", "productowner", "projectmanager", "gerentedeproyectos"], areas: ["gestion"] },
+  { nombre: "Móvil", alias: ["movil", "mobile", "android", "ios", "aplicacionesmoviles", "appsmoviles"], areas: ["movil"] },
+  {
+    nombre: "QA",
+    alias: ["qa", "tester", "calidaddesoftware", "pruebas", "automatizaciondepruebas", "qaautomation", "testing"],
+    areas: ["qa"],
+  },
+  { nombre: "Diseño UX/UI", alias: ["ux", "ui", "disenador", "designer", "disenoux", "disenoui"], areas: ["diseno"] },
+  {
+    nombre: "Gestión ágil",
+    alias: ["scrummaster", "productowner", "projectmanager", "gerentedeproyectos", "productmanager"],
+    areas: ["gestion"],
+  },
+  {
+    nombre: "Desarrollo web",
+    alias: ["desarrolladorweb", "webdeveloper", "programadorweb", "desarrolloweb"],
+    areas: ["frontend", "backend"],
+    generico: true,
+  },
   {
     nombre: "Desarrollo de software",
     alias: [
       "softwareengineer", "ingenierodesoftware", "desarrolladordesoftware", "developer",
-      "desarrollador", "programador", "ingenierodesistemas", "softwaredeveloper",
+      "desarrollador", "programador", "ingenierodesistemas", "softwaredeveloper", "arquitectodesoftware",
+      "techlead", "lidertecnico", "analistaprogramador", "analistadesistemas", "ingenierodedesarrollo",
     ],
     areas: ["frontend", "backend"],
     generico: true,
@@ -259,6 +287,10 @@ export const SUGERENCIAS_TITULAR = [
   "Desarrollador Full Stack",
   "Desarrollador Backend",
   "Desarrollador Frontend",
+  "Desarrollador Web",
+  "Desarrollador Java",
+  "Desarrollador .NET",
+  "Desarrollador Python",
   "Ingeniero de Software",
   "Analista de Datos",
   "Científico de Datos",
@@ -267,3 +299,47 @@ export const SUGERENCIAS_TITULAR = [
   "Analista QA",
   "Diseñador UX/UI",
 ];
+
+/* ---------------- Texto libre ---------------- */
+
+// N-gramas (1 a 3 palabras) de un texto en forma de clave: "APIs REST" -> "apis",
+// "rest", "apisrest". Permite buscar alias por palabras completas, sin falsos
+// positivos por subcadena ("interesante" no contiene la palabra REST).
+export function ngramas(texto: string): Set<string> {
+  const palabras = texto.split(/[^\p{L}\p{N}+#.]+/u).map(clave).filter(Boolean);
+  const set = new Set<string>();
+  for (let i = 0; i < palabras.length; i++) {
+    let acumulado = "";
+    for (let n = 0; n < 3 && i + n < palabras.length; n++) {
+      acumulado += palabras[i + n];
+      set.add(acumulado);
+    }
+  }
+  return set;
+}
+
+// Habilidades del catálogo nombradas dentro de un texto
+// ("Experiencia con React y Node.js" -> React, Node.js).
+export function habilidadesMencionadas(texto: string): HabilidadCatalogo[] {
+  const gramas = ngramas(texto);
+  return HABILIDADES.filter((s) => [s.id, s.nombre, ...s.alias].some((a) => gramas.has(clave(a))));
+}
+
+// Áreas de un cargo o titular: roles explícitos ("Backend") más las tecnologías
+// que nombra ("Desarrollador Java" -> Backend). Si solo hay un rol genérico
+// ("Desarrollador") se usa ese, con menor certeza.
+export function rolesDeCargo(texto: string | null | undefined): RolDetectado[] {
+  const roles = detectarRoles(texto);
+  const especificos = roles.filter((r) => !r.generico);
+  const porTecnologia = habilidadesMencionadas(texto ?? "").map((s) => ({
+    nombre: s.nombre,
+    areas: s.areas,
+    generico: false,
+  }));
+  const directos = [...especificos, ...porTecnologia];
+  return directos.length ? directos : roles;
+}
+
+export function areasDeCargo(texto: string | null | undefined): Area[] {
+  return Array.from(new Set(rolesDeCargo(texto).flatMap((r) => r.areas)));
+}

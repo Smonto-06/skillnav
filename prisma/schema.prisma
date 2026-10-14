@@ -132,6 +132,10 @@ enum NivelHabilidad {
 
 enum NivelEducativo {
   BACHILLER
+  CURSO
+  CERTIFICACION
+  DIPLOMADO
+  BOOTCAMP
   TECNICO
   TECNOLOGO
   PROFESIONAL

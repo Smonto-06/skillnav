@@ -12,14 +12,18 @@
 import {
   AREA_LABEL,
   Area,
+  HabilidadCatalogo,
   adyacencia,
+  areasDeCargo,
   areasDeRequisito,
   clave,
   cubiertas,
-  detectarRoles,
+  habilidadesMencionadas,
+  ngramas,
   resolverHabilidad,
+  rolesDeCargo,
 } from "./taxonomia";
-import { Periodo, aniosTotales, formatoDuracion } from "./trayectoria";
+import { Periodo, aniosDe, aniosTotales, formatoDuracion } from "./trayectoria";
 
 export type Modalidad = "PRESENCIAL" | "REMOTO" | "HIBRIDO";
 export type NivelHabilidad = "BASICO" | "INTERMEDIO" | "AVANZADO" | "EXPERTO";
@@ -42,6 +46,8 @@ export interface PerfilScoring {
   titular?: string | null;
   resumen?: string | null;
   experiencias?: ExperienciaPerfil[];
+  /** Títulos de estudios, cursos y certificaciones (evidencia de conocimientos). */
+  educacion?: { titulo: string }[];
   salarioMin?: number | null;
   salarioMax?: number | null;
   modalidad?: Modalidad | null;
@@ -135,21 +141,6 @@ const estadoDe = (c: number): EstadoRequisito => (c > 0.7 ? "cumple" : c > 0 ? "
 // menciona en su resumen o en las funciones de un cargo.
 const CREDITO_MENCION = 0.5;
 
-// N-gramas (1 a 3 palabras) de un texto en forma de clave: "APIs REST" -> "apis",
-// "rest", "apisrest". Permite buscar alias sin falsos positivos por subcadena.
-function ngramas(texto: string): Set<string> {
-  const palabras = texto.split(/[^\p{L}\p{N}+#.]+/u).map(clave).filter(Boolean);
-  const set = new Set<string>();
-  for (let i = 0; i < palabras.length; i++) {
-    let acumulado = "";
-    for (let n = 0; n < 3 && i + n < palabras.length; n++) {
-      acumulado += palabras[i + n];
-      set.add(acumulado);
-    }
-  }
-  return set;
-}
-
 interface Mencion {
   gramas: Set<string>;
   fuente: string;
@@ -166,6 +157,10 @@ function textosDelPerfil(perfil: PerfilScoring): Mencion[] {
       });
     }
   }
+  // Cursos, certificaciones y títulos también evidencian conocimientos ("Curso de Docker").
+  for (const ed of perfil.educacion ?? []) {
+    textos.push({ gramas: ngramas(ed.titulo), fuente: `tu formación (${ed.titulo})` });
+  }
   return textos;
 }
 
@@ -176,32 +171,72 @@ interface Cobertura {
   fuente: string;
 }
 
-// Certeza (0-1) con la que el perfil cubre cada área, y de dónde sale.
-// Titular y cargos pesan más que las habilidades sueltas.
-function coberturaDeAreas(perfil: PerfilScoring, habilidades: HabilidadPerfil[]): Map<Area, Cobertura> {
+// Cuánto acredita un rol el tiempo ejercido: una semana como "Full Stack" no es
+// lo mismo que tres años. 2+ años = 1; menos de 3 meses apenas cuenta.
+export function factorTiempo(anios: number): number {
+  return anios >= 2 ? 1 : anios >= 1 ? 0.9 : anios >= 0.5 ? 0.75 : anios >= 0.25 ? 0.5 : 0.25;
+}
+
+// Certeza (0-1) con la que el perfil cubre cada área, y de dónde sale:
+// cargos (según el tiempo ejercido), titular (declarado; pesa completo si la
+// experiencia lo respalda) y habilidades sueltas.
+function coberturaDeAreas(
+  perfil: PerfilScoring,
+  habilidades: HabilidadPerfil[],
+  ahora: Date
+): Map<Area, Cobertura> {
   const cob = new Map<Area, Cobertura>();
   const subir = (area: Area, valor: number, fuente: string) => {
     if ((cob.get(area)?.valor ?? 0) < valor) cob.set(area, { valor, fuente });
   };
 
-  const textos: [string, string][] = [];
-  if (perfil.titular) textos.push([perfil.titular, `tu perfil ${perfil.titular}`]);
-  for (const e of perfil.experiencias ?? []) textos.push([e.cargo, `tu experiencia como ${e.cargo}`]);
-  // Una "habilidad" que en realidad es un rol ("Full Stack") también cuenta.
-  for (const h of habilidades) if (!resolverHabilidad(h.nombre)) textos.push([h.nombre, `tu perfil ${h.nombre}`]);
+  // 1. Cargos: años ejercidos en cada área, sin contar dos veces los simultáneos.
+  const porArea = new Map<Area, { exps: ExperienciaPerfil[]; especifico: boolean }>();
+  for (const e of perfil.experiencias ?? []) {
+    for (const rol of rolesDeCargo(e.cargo)) {
+      for (const area of rol.areas) {
+        const actual = porArea.get(area) ?? { exps: [], especifico: false };
+        if (!actual.exps.includes(e)) actual.exps.push(e);
+        actual.especifico ||= !rol.generico;
+        porArea.set(area, actual);
+      }
+    }
+  }
+  const respaldoPorCargos = new Map<Area, number>();
+  porArea.forEach(({ exps, especifico }, area) => {
+    const conFechas = exps.filter((e) => e.inicio);
+    const anios = aniosTotales(conFechas, ahora);
+    const base = conFechas.length ? factorTiempo(anios) : 0.5; // sin fechas: no se puede medir
+    const valor = base * (especifico ? 1 : 0.7);
+    const principal = [...exps].sort((a, b) => aniosDe(b, ahora) - aniosDe(a, ahora))[0];
+    const tiempo = conFechas.length ? formatoDuracion(anios) : "sin fechas";
+    respaldoPorCargos.set(area, valor);
+    subir(area, valor, `tu experiencia como ${principal.cargo} (${tiempo})`);
+  });
 
-  for (const [texto, fuente] of textos) {
-    for (const rol of detectarRoles(texto)) {
-      for (const area of rol.areas) subir(area, rol.generico ? 0.7 : 1, fuente);
+  // 2. Titular y habilidades que en realidad son roles ("Full Stack"): declarados,
+  //    cuentan completo si la experiencia en esa área lo respalda (6+ meses).
+  const declarados: [string, string][] = [];
+  if (perfil.titular) declarados.push([perfil.titular, `tu perfil ${perfil.titular}`]);
+  for (const h of habilidades) if (!resolverHabilidad(h.nombre)) declarados.push([h.nombre, `tu perfil ${h.nombre}`]);
+  for (const [texto, fuente] of declarados) {
+    for (const rol of rolesDeCargo(texto)) {
+      for (const area of rol.areas) {
+        const respaldado = (respaldoPorCargos.get(area) ?? 0) >= 0.75;
+        subir(area, rol.generico ? 0.7 : respaldado ? 1 : 0.85, fuente);
+      }
     }
   }
 
-  const porArea = new Map<Area, string[]>();
+  // 3. Habilidades técnicas agrupadas por área.
+  const habilidadesPorArea = new Map<Area, string[]>();
   for (const h of habilidades) {
     const s = resolverHabilidad(h.nombre);
-    for (const area of s?.areas ?? []) porArea.set(area, [...(porArea.get(area) ?? []), s!.nombre]);
+    for (const area of s?.areas ?? []) {
+      habilidadesPorArea.set(area, [...(habilidadesPorArea.get(area) ?? []), s!.nombre]);
+    }
   }
-  porArea.forEach((nombres, area) => {
+  habilidadesPorArea.forEach((nombres, area) => {
     const n = nombres.length;
     const valor = n >= 3 ? 0.8 : n === 2 ? 0.6 : 0.4;
     subir(area, valor, `tus habilidades de ${AREA_LABEL[area]} (${nombres.slice(0, 3).join(", ")})`);
@@ -221,13 +256,53 @@ function cubreArea(cob: Map<Area, Cobertura>, area: Area): Cobertura {
 
 /* ---------------- Habilidades ---------------- */
 
+// Qué tanto respalda el perfil una habilidad concreta del catálogo.
+function evaluarHabilidad(
+  req: HabilidadCatalogo,
+  habilidades: HabilidadPerfil[],
+  menciones: Mencion[]
+): { credito: number; motivo: string } {
+  let mejor = { credito: 0, motivo: "No aparece en tu perfil" };
+  for (const h of habilidades) {
+    const propia = resolverHabilidad(h.nombre);
+    if (!propia) continue;
+    const f = factorDominio(h);
+    let credito = 0;
+    let motivo = "";
+    if (propia.id === req.id) {
+      credito = f;
+      motivo = `Lo tienes${detalleDominio(h)}`;
+    } else if (cubiertas(propia.id).has(req.id)) {
+      credito = 0.9 * f;
+      motivo = `Lo cubre tu dominio de ${propia.nombre}`;
+    } else {
+      const afin = propia.afines.find(([id]) => id === req.id)?.[1] ?? 0;
+      if (afin) {
+        credito = afin * f;
+        motivo = `Relacionado: manejas ${propia.nombre}`;
+      }
+    }
+    if (credito > mejor.credito) mejor = { credito, motivo };
+  }
+  if (mejor.credito < CREDITO_MENCION) {
+    const claves = [req.id, req.nombre, ...req.alias].map(clave);
+    const mencion = menciones.find((m) => claves.some((k) => m.gramas.has(k)));
+    if (mencion) {
+      mejor = {
+        credito: CREDITO_MENCION,
+        motivo: `Lo mencionas en ${mencion.fuente}; agrégalo a tus habilidades con su nivel`,
+      };
+    }
+  }
+  return mejor;
+}
+
 function evaluarRequisito(
   requisito: string,
   habilidades: HabilidadPerfil[],
   cob: Map<Area, Cobertura>,
   menciones: Mencion[]
 ): EvaluacionRequisito {
-  const req = resolverHabilidad(requisito);
   const resultado = (credito: number, motivo: string): EvaluacionRequisito => ({
     requisito,
     credito,
@@ -235,52 +310,35 @@ function evaluarRequisito(
     motivo,
   });
 
+  // 1. Una habilidad del catálogo escrita de cualquier forma ("node js").
+  const req = resolverHabilidad(requisito);
   if (req) {
-    let mejor = resultado(0, "No aparece en tu perfil");
-    for (const h of habilidades) {
-      const propia = resolverHabilidad(h.nombre);
-      if (!propia) continue;
-      const f = factorDominio(h);
-      let credito = 0;
-      let motivo = "";
-      if (propia.id === req.id) {
-        credito = f;
-        motivo = `Lo tienes${detalleDominio(h)}`;
-      } else if (cubiertas(propia.id).has(req.id)) {
-        credito = 0.9 * f;
-        motivo = `Lo cubre tu dominio de ${propia.nombre}`;
-      } else {
-        const afin = propia.afines.find(([id]) => id === req.id)?.[1] ?? 0;
-        if (afin) {
-          credito = afin * f;
-          motivo = `Relacionado: manejas ${propia.nombre}`;
-        }
-      }
-      if (credito > mejor.credito) mejor = resultado(credito, motivo);
-    }
-    if (mejor.credito < CREDITO_MENCION) {
-      const claves = [req.id, req.nombre, ...req.alias].map(clave);
-      const mencion = menciones.find((m) => claves.some((k) => m.gramas.has(k)));
-      if (mencion) {
-        mejor = resultado(
-          CREDITO_MENCION,
-          `Lo mencionas en ${mencion.fuente}; agrégalo a tus habilidades con su nivel`
-        );
-      }
-    }
-    return mejor;
+    const r = evaluarHabilidad(req, habilidades, menciones);
+    return resultado(r.credito, r.motivo);
   }
 
-  // Requisito genérico de área ("Backend", "Experiencia en frontend").
+  // 2. Una frase que nombra tecnologías ("Experiencia con React y Node.js"):
+  //    se evalúa cada una y se promedia.
+  const mencionadas = habilidadesMencionadas(requisito);
+  if (mencionadas.length) {
+    const evaluadas = mencionadas.map((s) => ({ s, ...evaluarHabilidad(s, habilidades, menciones) }));
+    const credito = evaluadas.reduce((t, e) => t + e.credito, 0) / evaluadas.length;
+    const motivo = evaluadas
+      .map((e) => `${e.s.nombre}: ${e.motivo.charAt(0).toLowerCase()}${e.motivo.slice(1)}`)
+      .join(" · ");
+    return resultado(credito, motivo);
+  }
+
+  // 3. Requisito genérico de área ("Backend", "Experiencia en frontend").
   const areas = areasDeRequisito(requisito);
   if (areas.length) {
     const coberturas = areas.map((a) => cubreArea(cob, a));
-    const credito = coberturas.reduce((s, c) => s + c.valor, 0) / areas.length;
+    const credito = coberturas.reduce((t, c) => t + c.valor, 0) / areas.length;
     const fuente = coberturas.find((c) => c.valor > 0)?.fuente;
     return resultado(credito, fuente ? `Lo cubre ${fuente}` : "Tu perfil no muestra esta área");
   }
 
-  // Fuera del catálogo: coincidencia literal (sin mayúsculas ni signos).
+  // 4. Fuera del catálogo: coincidencia literal (sin mayúsculas ni signos).
   const propia = habilidades.find((h) => clave(h.nombre) === clave(requisito));
   return propia
     ? resultado(factorDominio(propia), `Lo tienes${detalleDominio(propia)}`)
@@ -288,10 +346,6 @@ function evaluarRequisito(
 }
 
 /* ---------------- Rol y experiencia ---------------- */
-
-function areasDeVacante(titulo?: string | null): Area[] {
-  return Array.from(new Set(detectarRoles(titulo).flatMap((r) => r.areas)));
-}
 
 function evaluarRol(areasVacante: Area[], cob: Map<Area, Cobertura>): { valor: number; motivo: string } {
   if (areasVacante.length === 0) return { valor: 1, motivo: "La vacante no define un rol específico." };
@@ -315,7 +369,7 @@ function evaluarExperiencia(
 ): { valor: number; motivo: string } {
   const exps = perfil.experiencias ?? [];
   const esAfin = (e: ExperienciaPerfil) => {
-    const areas = detectarRoles(e.cargo).flatMap((r) => r.areas);
+    const areas = areasDeCargo(e.cargo);
     return (
       areasVacante.length === 0 || areas.some((a) => areasVacante.some((v) => adyacencia(a, v) >= 0.5))
     );
@@ -358,7 +412,7 @@ export function matchScore(
   ahora = new Date()
 ): ResultadoScoring {
   const habilidades = perfil.habilidades.map(aHabilidad);
-  const cob = coberturaDeAreas(perfil, habilidades);
+  const cob = coberturaDeAreas(perfil, habilidades, ahora);
   const menciones = textosDelPerfil(perfil);
 
   const requisitos = vacante.requisitos
@@ -370,7 +424,7 @@ export function matchScore(
       ? 1 // sin requisitos: vacante abierta a cualquier perfil
       : requisitos.reduce((s, r) => s + r.credito, 0) / requisitos.length;
 
-  const areasVacante = areasDeVacante(vacante.titulo);
+  const areasVacante = areasDeCargo(vacante.titulo);
   const rol = evaluarRol(areasVacante, cob);
   const experiencia = evaluarExperiencia(perfil, vacante, areasVacante, ahora);
 

@@ -5,7 +5,12 @@ import { ReactNode } from "react";
 import { requireCandidato } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { completitud } from "@/lib/completeness";
-import { NIVEL_EDUCATIVO_LABEL, NIVEL_IDIOMA_LABEL } from "@/lib/presentacion";
+import {
+  FORMACION_COMPLEMENTARIA,
+  NIVEL_EDUCATIVO_LABEL,
+  NIVEL_IDIOMA_LABEL,
+  rangoEducativo,
+} from "@/lib/presentacion";
 import { NIVEL_LABEL } from "@/lib/scoring";
 import { SUGERENCIAS_HABILIDADES, SUGERENCIAS_TITULAR } from "@/lib/taxonomia";
 import { aniosDe, aniosTotales, formatoDuracion, formatoPeriodo } from "@/lib/trayectoria";
@@ -82,6 +87,11 @@ export default async function PerfilPage({
   );
   const sinFechas = experiencias.filter((e) => !e.fechaInicio).length;
   const sinNivel = habilidades.filter((h) => !h.nivel).length;
+  const porNivel = [...educaciones].sort(
+    (a, b) => rangoEducativo(b.nivel) - rangoEducativo(a.nivel) || (b.anio ?? 0) - (a.anio ?? 0)
+  );
+  const academica = porNivel.filter((e) => !e.nivel || !FORMACION_COMPLEMENTARIA.has(e.nivel));
+  const complementaria = porNivel.filter((e) => e.nivel && FORMACION_COMPLEMENTARIA.has(e.nivel));
   const tecnicas = habilidades.filter((h) => h.tipo === "TECNICA");
   const blandas = habilidades.filter((h) => h.tipo === "BLANDA");
 
@@ -176,7 +186,7 @@ export default async function PerfilPage({
           <Card>
             <Encabezado
               titulo="Experiencia laboral"
-              descripcion="Cargos con sus fechas: calculamos tus años de experiencia relevante para cada vacante."
+              descripcion="Cada cargo con el tiempo que lo ejerciste: un cargo de pocas semanas pesa mucho menos que uno de varios años."
               extra={
                 experiencias.length > 0 && (
                   <span className="rounded-full bg-acento-suave px-3 py-1 text-xs font-semibold text-acento-texto">
@@ -207,13 +217,20 @@ export default async function PerfilPage({
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-900">{e.cargo}</p>
                           <p className="text-sm text-slate-600">{e.empresa}</p>
-                          <p className="text-xs text-slate-500">
-                            {periodo
-                              ? `${periodo} · ${formatoDuracion(
-                                  aniosDe({ inicio: e.fechaInicio, fin: e.fechaFin, actual: e.actual })
-                                )}`
-                              : "Sin fechas"}
-                          </p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                            {periodo ? (
+                              <>
+                                <span className="rounded-full bg-acento-suave px-2 py-0.5 font-semibold text-acento-texto">
+                                  {formatoDuracion(aniosDe({ inicio: e.fechaInicio, fin: e.fechaFin, actual: e.actual }))} en el cargo
+                                </span>
+                                <span className="text-slate-500">{periodo}</span>
+                              </>
+                            ) : (
+                              <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
+                                Sin fechas: edítalo para indicar el tiempo en el cargo
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
                           <Link href={`/perfil/experiencia/${e.id}`} className="text-sm font-medium text-acento-texto hover:underline">
@@ -242,63 +259,101 @@ export default async function PerfilPage({
 
           {/* Educación */}
           <Card>
-            <Encabezado titulo="Educación" descripcion="Tu formación académica, del nivel más alto al más básico." />
-            {educaciones.length > 0 ? (
-              <ul className="divide-y divide-slate-100">
-                {educaciones.map((e) => (
-                  <li key={e.id} className="flex items-start justify-between gap-4 py-3 first:pt-0">
-                    <div>
-                      <p className="font-semibold text-slate-900">{e.titulo}</p>
-                      <p className="text-sm text-slate-600">{e.institucion}</p>
-                      <p className="text-xs text-slate-500">
-                        {[
-                          e.nivel ? NIVEL_EDUCATIVO_LABEL[e.nivel] : null,
-                          e.enCurso ? "En curso" : "Graduado",
-                          e.anio ? (e.enCurso ? `Finaliza en ${e.anio}` : String(e.anio)) : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    </div>
-                    <form action={eliminarEducacionAction}>
-                      <input type="hidden" name="id" value={e.id} />
-                      <button className={botonEliminar}>Eliminar</button>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-slate-500">Aún no registras estudios.</p>
-            )}
-            <Agregar texto="Agregar estudio">
+            <Encabezado
+              titulo="Educación y formación"
+              descripcion="Títulos, técnicas, tecnologías, posgrados, cursos, diplomados, bootcamps y certificaciones."
+            />
+            {educaciones.length === 0 && <p className="text-sm text-slate-500">Aún no registras estudios.</p>}
+            {[
+              { titulo: "Formación académica", lista: academica },
+              { titulo: "Cursos y certificaciones", lista: complementaria },
+            ]
+              .filter((g) => g.lista.length > 0)
+              .map((g) => (
+                <div key={g.titulo} className="mb-2">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.titulo}</p>
+                  <ul className="divide-y divide-slate-100">
+                    {g.lista.map((e) => (
+                      <li key={e.id} className="flex items-start justify-between gap-4 py-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-900">{e.titulo}</p>
+                            {e.nivel && (
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                {NIVEL_EDUCATIVO_LABEL[e.nivel]}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-600">{e.institucion}</p>
+                          <p className="text-xs text-slate-500">
+                            {[
+                              e.enCurso ? "En curso" : "Finalizado",
+                              e.anio ? (e.enCurso ? `Termina en ${e.anio}` : String(e.anio)) : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        </div>
+                        <form action={eliminarEducacionAction}>
+                          <input type="hidden" name="id" value={e.id} />
+                          <button className={botonEliminar}>Eliminar</button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            <Agregar texto="Agregar estudio, curso o certificación">
               <form action={agregarEducacionAction} className="grid gap-4 sm:grid-cols-2">
-                <Field label="Nivel educativo *">
+                <Field label="Tipo de formación *">
                   <select name="nivel" required defaultValue="" className={inputClass}>
                     <option value="" disabled>
                       Selecciona
                     </option>
-                    {Object.entries(NIVEL_EDUCATIVO_LABEL).map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
+                    <optgroup label="Formación académica">
+                      {Object.entries(NIVEL_EDUCATIVO_LABEL)
+                        .filter(([v]) => !FORMACION_COMPLEMENTARIA.has(v))
+                        .map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Formación complementaria">
+                      {Object.entries(NIVEL_EDUCATIVO_LABEL)
+                        .filter(([v]) => FORMACION_COMPLEMENTARIA.has(v))
+                        .map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                    </optgroup>
                   </select>
                 </Field>
-                <Field label="Título obtenido *">
-                  <input name="titulo" required placeholder="Ej. Ingeniería de Sistemas" className={inputClass} />
+                <Field label="Título o nombre del programa *">
+                  <input
+                    name="titulo"
+                    required
+                    placeholder="Ej. Ingeniería de Sistemas, Técnico en Programación, Curso de Docker"
+                    className={inputClass}
+                  />
                 </Field>
                 <Field label="Institución *">
-                  <input name="institucion" required placeholder="Ej. Universidad EAFIT" className={inputClass} />
+                  <input name="institucion" required placeholder="Ej. EAFIT, SENA, Platzi, Coursera, AWS" className={inputClass} />
                 </Field>
-                <Field label="Año de grado (o esperado)">
+                <Field label="Año de finalización (o esperado)">
                   <input name="anio" type="number" min="1950" max="2100" className={inputClass} />
                 </Field>
                 <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                   <input type="checkbox" name="enCurso" className="h-4 w-4 accent-acento" />
-                  Actualmente estoy cursando este programa
+                  Actualmente lo estoy cursando
                 </label>
+                <p className="text-xs text-slate-400 sm:col-span-2">
+                  Las tecnologías que nombres en cursos y certificaciones (ej. &ldquo;Curso de Docker&rdquo;) también
+                  cuentan como evidencia en tu compatibilidad.
+                </p>
                 <div className="sm:col-span-2">
-                  <SubmitButton>Agregar estudio</SubmitButton>
+                  <SubmitButton>Agregar a mi formación</SubmitButton>
                 </div>
               </form>
             </Agregar>

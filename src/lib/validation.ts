@@ -24,6 +24,10 @@ const opcional = (max: number) => z.string().trim().max(max).optional().or(z.lit
 export const nivelHabilidadEnum = z.enum(["BASICO", "INTERMEDIO", "AVANZADO", "EXPERTO"]);
 export const nivelEducativoEnum = z.enum([
   "BACHILLER",
+  "CURSO",
+  "CERTIFICACION",
+  "DIPLOMADO",
+  "BOOTCAMP",
   "TECNICO",
   "TECNOLOGO",
   "PROFESIONAL",
