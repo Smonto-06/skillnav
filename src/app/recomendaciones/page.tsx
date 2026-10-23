@@ -55,7 +55,8 @@ export default async function RecomendacionesPage({
         tus habilidades frente a los requisitos (40%) reconociendo sinónimos y equivalencias (por
         ejemplo, PostgreSQL cubre SQL), la afinidad de tu rol con el cargo (20%; un perfil Full
         Stack cubre una vacante Backend), tus años de experiencia relevante (15%), el salario
-        (10%), la modalidad (10%) y la ciudad (5%). Mientras más completo esté tu perfil, con
+        (10%), la modalidad (10%; si prefieres híbrido también eres compatible con vacantes
+        presenciales y remotas) y la ciudad (5%). Mientras más completo esté tu perfil, con
         nivel y años en cada habilidad y fechas en cada cargo, más preciso es el resultado.
       </div>
 

@@ -58,6 +58,54 @@ describe("matchScore", () => {
     );
     expect(mismatch.score).toBeLessThan(match.score);
   });
+
+  it("preferir híbrido cubre vacantes presenciales y remotas", () => {
+    const presencial = matchScore(
+      { habilidades: ["React"], modalidad: "HIBRIDO" },
+      { requisitos: ["React"], modalidad: "PRESENCIAL" }
+    );
+    const remoto = matchScore(
+      { habilidades: ["React"], modalidad: "HIBRIDO" },
+      { requisitos: ["React"], modalidad: "REMOTO" }
+    );
+    const hibrido = matchScore(
+      { habilidades: ["React"], modalidad: "HIBRIDO" },
+      { requisitos: ["React"], modalidad: "HIBRIDO" }
+    );
+
+    expect(presencial.desglose.modalidad).toBe(0.75);
+    expect(remoto.desglose.modalidad).toBe(0.75);
+    expect(hibrido.desglose.modalidad).toBe(1);
+  });
+
+  it("una vacante híbrida es compatible en parte con quien busca remoto o presencial", () => {
+    const desdeRemoto = matchScore(
+      { habilidades: ["React"], modalidad: "REMOTO" },
+      { requisitos: ["React"], modalidad: "HIBRIDO" }
+    );
+    const desdePresencial = matchScore(
+      { habilidades: ["React"], modalidad: "PRESENCIAL" },
+      { requisitos: ["React"], modalidad: "HIBRIDO" }
+    );
+
+    expect(desdeRemoto.desglose.modalidad).toBe(0.5);
+    expect(desdePresencial.desglose.modalidad).toBe(0.75);
+  });
+
+  it("presencial y remoto siguen siendo incompatibles entre sí", () => {
+    expect(
+      matchScore(
+        { habilidades: ["React"], modalidad: "REMOTO" },
+        { requisitos: ["React"], modalidad: "PRESENCIAL" }
+      ).desglose.modalidad
+    ).toBe(0);
+    expect(
+      matchScore(
+        { habilidades: ["React"], modalidad: "PRESENCIAL" },
+        { requisitos: ["React"], modalidad: "REMOTO" }
+      ).desglose.modalidad
+    ).toBe(0);
+  });
 });
 
 const AHORA = new Date(Date.UTC(2026, 9, 1));

@@ -99,6 +99,16 @@ export const PESOS_DEFAULT = {
   ubicacion: 0.05,
 } as const;
 
+// Compatibilidad entre la modalidad que prefiere el candidato (fila) y la que
+// ofrece la vacante (columna). No es simétrica: quien busca híbrido acepta
+// cualquiera de las dos jornadas, mientras que quien busca remoto solo cubre
+// parcialmente un híbrido (tendría que ir a la oficina algunos días).
+export const COMPAT_MODALIDAD: Record<Modalidad, Record<Modalidad, number>> = {
+  HIBRIDO: { HIBRIDO: 1, PRESENCIAL: 0.75, REMOTO: 0.75 },
+  PRESENCIAL: { PRESENCIAL: 1, HIBRIDO: 0.75, REMOTO: 0 },
+  REMOTO: { REMOTO: 1, HIBRIDO: 0.5, PRESENCIAL: 0 },
+};
+
 export const NIVEL_LABEL: Record<NivelHabilidad, string> = {
   BASICO: "Básico",
   INTERMEDIO: "Intermedio",
@@ -440,9 +450,13 @@ export function matchScore(
     else salario = Math.max(0, vacante.salario / Math.max(min, 1));
   }
 
-  // Modalidad: 1 si coincide, no hay preferencia del candidato, o la vacante no especifica.
+  // Modalidad: 1 si no hay preferencia del candidato o la vacante no especifica;
+  // si ambas están declaradas se usa la tabla de compatibilidad (híbrido cubre
+  // presencial y remoto, no solo híbrido).
   const modalidad =
-    !perfil.modalidad || !vacante.modalidad || perfil.modalidad === vacante.modalidad ? 1 : 0;
+    !perfil.modalidad || !vacante.modalidad
+      ? 1
+      : COMPAT_MODALIDAD[perfil.modalidad][vacante.modalidad];
 
   // Ubicación: 1 si coincide ciudad, o si la modalidad es remoto, o sin preferencia.
   const ubicacion =
