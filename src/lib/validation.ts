@@ -133,6 +133,32 @@ export const preferenciaSchema = z
     { message: "El salario máximo no puede ser menor que el mínimo", path: ["salarioMax"] }
   );
 
+// HU-26 · CRUD de vacantes desde el panel de administración.
+// Título y empresa son obligatorios: sin ellos la vacante no se puede mostrar.
+// El resto es opcional, y el motor de scoring ya trata los datos ausentes como
+// neutros en lugar de penalizar al candidato.
+export const vacanteSchema = z.object({
+  titulo: z.string().trim().min(3, "El título debe tener al menos 3 caracteres").max(160),
+  empresa: z.string().trim().min(2, "La empresa debe tener al menos 2 caracteres").max(120),
+  descripcion: z.string().trim().max(4000).optional().or(z.literal("")),
+  // Lista separada por comas: "React, TypeScript, SQL".
+  requisitos: z.string().trim().max(1000).optional().or(z.literal("")),
+  experienciaMin: z.coerce
+    .number()
+    .int("Los años de experiencia deben ser un número entero")
+    .min(0, "Los años de experiencia no pueden ser negativos")
+    .max(50, "Revisa los años de experiencia")
+    .optional(),
+  salario: z.coerce
+    .number()
+    .int("El salario debe ser un número entero")
+    .min(0, "El salario no puede ser negativo")
+    .optional(),
+  modalidad: modalidadEnum.optional().or(z.literal("").transform(() => undefined)),
+  ciudad: z.string().trim().max(120).optional().or(z.literal("")),
+});
+
 export type RegistroInput = z.infer<typeof registroSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PreferenciaInput = z.infer<typeof preferenciaSchema>;
+export type VacanteInput = z.infer<typeof vacanteSchema>;

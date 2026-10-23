@@ -37,3 +37,13 @@ export async function requireCandidato() {
   if (!candidato) redirect("/login");
   return candidato;
 }
+
+// Exige sesión con rol ADMIN (HU-25). Protege todo /admin y sus acciones.
+// Sin sesión manda a /admin/login; con sesión de candidato normal manda al
+// perfil, para no confirmarle qué rutas de administración existen.
+export async function requireAdmin() {
+  const cuenta = await getCandidatoActual();
+  if (!cuenta) redirect("/admin/login");
+  if (cuenta.rol !== "ADMIN") redirect("/perfil");
+  return cuenta;
+}

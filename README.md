@@ -35,6 +35,24 @@ Abrir http://localhost:3000
 | `/preferencias` | Preferencias laborales (salario, modalidad, ubicacion) |
 | `/recomendaciones` | Vacantes recomendadas ordenadas por compatibilidad |
 | `/postulaciones` | Historial de postulaciones |
+| `/admin/login` | Acceso al panel de administracion |
+| `/admin/vacantes` | Catalogo de vacantes: crear, editar y eliminar |
+
+## Panel de administracion
+
+Las rutas `/admin/*` exigen una cuenta con rol `ADMIN`. No hay registro publico
+de administradores: la primera cuenta se crea desde la terminal.
+
+```bash
+# Crear una cuenta de administrador
+npm run admin -- admin@ejemplo.com MiContrasena123
+
+# O promover una cuenta de candidato que ya existe
+npm run admin -- correo@existente.com
+```
+
+Desde el panel se gestiona el catalogo de vacantes. Una vacante que ya tiene
+postulaciones no se puede eliminar, para no borrar el historial del candidato.
 
 ## Motor de compatibilidad (Match Score)
 

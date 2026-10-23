@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "admin": "tsx prisma/admin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

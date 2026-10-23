@@ -44,6 +44,15 @@ export default async function Header() {
                 <Link href="/perfil" className="block rounded-md px-3 py-2 hover:bg-slate-50">
                   Mi perfil
                 </Link>
+                {/* El panel solo aparece para cuentas ADMIN (HU-25). */}
+                {candidato.rol === "ADMIN" && (
+                  <Link
+                    href="/admin/vacantes"
+                    className="block rounded-md px-3 py-2 font-medium text-acento-texto hover:bg-slate-50"
+                  >
+                    Panel de administración
+                  </Link>
+                )}
                 <form action={cerrarSesionAction}>
                   <button className="w-full rounded-md px-3 py-2 text-left text-red-600 hover:bg-red-50">
                     Cerrar sesión

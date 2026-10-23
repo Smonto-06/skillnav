@@ -57,7 +57,8 @@ export async function loginAction(formData: FormData) {
   }
 
   establecerSesion(candidato.id);
-  redirect("/perfil");
+  // Un admin que entra por el login general va directo a su panel (HU-25).
+  redirect(candidato.rol === "ADMIN" ? "/admin/vacantes" : "/perfil");
 }
 
 export async function cerrarSesionAction() {
