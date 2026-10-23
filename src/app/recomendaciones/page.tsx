@@ -25,7 +25,14 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 export default async function RecomendacionesPage({
   searchParams,
 }: {
-  searchParams: { ok?: string; error?: string; q?: string; ciudad?: string };
+  searchParams: {
+    ok?: string;
+    error?: string;
+    q?: string;
+    ciudad?: string;
+    modalidad?: string;
+    salarioMin?: string;
+  };
 }) {
   const candidato = await requireCandidato();
 
@@ -37,10 +44,22 @@ export default async function RecomendacionesPage({
 
   const yaPostulado = new Set(postulaciones.map((p) => p.vacanteId));
 
-  const filtrando = !!(searchParams.q?.trim() || searchParams.ciudad?.trim());
+  // El salario del filtro llega como texto: solo cuenta si es un número válido.
+  const salarioMinFiltro = Number.parseInt(searchParams.salarioMin ?? "", 10);
+  const filtros = {
+    modalidad: searchParams.modalidad,
+    salarioMin: Number.isFinite(salarioMinFiltro) ? salarioMinFiltro : null,
+  };
+
+  const filtrando = !!(
+    searchParams.q?.trim() ||
+    searchParams.ciudad?.trim() ||
+    filtros.modalidad?.trim() ||
+    filtros.salarioMin != null
+  );
   const recomendaciones = buildRecommendations(
     perfil,
-    filtrarVacantes(vacantes, searchParams.q, searchParams.ciudad)
+    filtrarVacantes(vacantes, searchParams.q, searchParams.ciudad, filtros)
   );
 
   return (
@@ -61,7 +80,12 @@ export default async function RecomendacionesPage({
       </div>
 
       <div className="mt-6">
-        <BuscadorVacantes q={searchParams.q} ciudad={searchParams.ciudad} />
+        <BuscadorVacantes
+          q={searchParams.q}
+          ciudad={searchParams.ciudad}
+          modalidad={searchParams.modalidad}
+          salarioMin={searchParams.salarioMin}
+        />
       </div>
       {filtrando && (
         <p className="mt-3 text-sm text-slate-500">

@@ -74,4 +74,38 @@ describe("filtrarVacantes", () => {
       "Frontend Developer",
     ]);
   });
+
+  const conModalidad = [
+    { titulo: "Remota", empresa: "A", modalidad: "REMOTO", salario: 3000 },
+    { titulo: "Hibrida", empresa: "B", modalidad: "HIBRIDO", salario: 5000 },
+    { titulo: "Sin datos", empresa: "C", modalidad: null, salario: null },
+  ];
+
+  it("filtra por modalidad exacta", () => {
+    expect(
+      filtrarVacantes(conModalidad, "", "", { modalidad: "HIBRIDO" }).map((v) => v.titulo)
+    ).toEqual(["Hibrida", "Sin datos"]);
+  });
+
+  it("filtra por salario mínimo", () => {
+    expect(
+      filtrarVacantes(conModalidad, "", "", { salarioMin: 4000 }).map((v) => v.titulo)
+    ).toEqual(["Hibrida", "Sin datos"]);
+  });
+
+  it("no descarta vacantes sin modalidad ni salario declarados", () => {
+    expect(
+      filtrarVacantes(conModalidad, "", "", { modalidad: "PRESENCIAL", salarioMin: 9000 }).map(
+        (v) => v.titulo
+      )
+    ).toEqual(["Sin datos"]);
+  });
+
+  it("combina los filtros con la búsqueda de texto", () => {
+    expect(
+      filtrarVacantes(conModalidad, "remota", "", { modalidad: "REMOTO", salarioMin: 2000 }).map(
+        (v) => v.titulo
+      )
+    ).toEqual(["Remota"]);
+  });
 });

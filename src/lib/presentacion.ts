@@ -62,8 +62,16 @@ function plano(s: string): string {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 
-// Filtro del buscador: `q` busca en cargo, empresa, requisitos y descripción;
-// `ciudad` en la ciudad de la vacante. Vacíos no filtran.
+export interface FiltrosVacante {
+  /** Modalidad exacta ("REMOTO", "HIBRIDO", "PRESENCIAL"). Vacío no filtra. */
+  modalidad?: string;
+  /** Salario mínimo aceptado: descarta las vacantes que paguen menos. */
+  salarioMin?: number | null;
+}
+
+// Filtro del buscador (HU-17): `q` busca en cargo, empresa, requisitos y
+// descripción; `ciudad` en la ciudad de la vacante; `filtros` acota por
+// modalidad y salario mínimo. Todo lo vacío no filtra.
 export function filtrarVacantes<
   T extends {
     titulo: string;
@@ -71,17 +79,25 @@ export function filtrarVacantes<
     requisitos?: string | null;
     descripcion?: string | null;
     ciudad?: string | null;
+    modalidad?: string | null;
+    salario?: number | null;
   },
->(vacantes: T[], q?: string, ciudad?: string): T[] {
+>(vacantes: T[], q?: string, ciudad?: string, filtros: FiltrosVacante = {}): T[] {
   const texto = plano(q ?? "");
   const lugar = plano(ciudad ?? "");
+  const modalidad = (filtros.modalidad ?? "").trim().toUpperCase();
+  const salarioMin = filtros.salarioMin ?? null;
   return vacantes.filter(
     (v) =>
       (!texto ||
         [v.titulo, v.empresa, v.requisitos ?? "", v.descripcion ?? ""].some((c) =>
           plano(c).includes(texto)
         )) &&
-      (!lugar || plano(v.ciudad ?? "").includes(lugar))
+      (!lugar || plano(v.ciudad ?? "").includes(lugar)) &&
+      // Una vacante sin modalidad declarada no se descarta: no contradice el filtro.
+      (!modalidad || !v.modalidad || v.modalidad.toUpperCase() === modalidad) &&
+      // Igual con el salario: sin dato no se puede afirmar que pague menos.
+      (salarioMin == null || v.salario == null || v.salario >= salarioMin)
   );
 }
 

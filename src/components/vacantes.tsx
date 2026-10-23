@@ -87,19 +87,24 @@ export function BotonPostular({
   );
 }
 
-// Buscador en forma de píldora (cargo + ubicación) que filtra /recomendaciones.
+// Buscador en forma de píldora (cargo + ubicación) con filtros de modalidad y
+// salario mínimo (HU-17), que filtra /recomendaciones.
 export function BuscadorVacantes({
   q = "",
   ciudad = "",
+  modalidad = "",
+  salarioMin = "",
   total,
 }: {
   q?: string;
   ciudad?: string;
+  modalidad?: string;
+  salarioMin?: string;
   total?: number;
 }) {
   return (
-    <form
-      action="/recomendaciones"
+    <form action="/recomendaciones" className="space-y-3">
+    <div
       className="flex flex-col gap-2 rounded-3xl border border-slate-200 bg-white p-2 shadow-sm sm:flex-row sm:items-center sm:rounded-full"
     >
       <label className="flex flex-1 items-center gap-2 px-4 py-2">
@@ -136,6 +141,35 @@ export function BuscadorVacantes({
         </svg>
         {total != null ? `Buscar en ${total} ${total === 1 ? "vacante" : "vacantes"}` : "Buscar empleo"}
       </button>
+    </div>
+
+    <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center">
+      <label className="flex items-center gap-2 text-sm text-slate-600">
+        <span className="shrink-0">Modalidad</span>
+        <select
+          name="modalidad"
+          defaultValue={modalidad}
+          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-acento/40"
+        >
+          <option value="">Cualquiera</option>
+          <option value="REMOTO">Remoto</option>
+          <option value="HIBRIDO">Híbrido</option>
+          <option value="PRESENCIAL">Presencial</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-sm text-slate-600">
+        <span className="shrink-0">Salario desde (USD)</span>
+        <input
+          name="salarioMin"
+          type="number"
+          min="0"
+          step="100"
+          defaultValue={salarioMin}
+          placeholder="Ej. 3000"
+          className="w-32 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-acento/40"
+        />
+      </label>
+    </div>
     </form>
   );
 }
