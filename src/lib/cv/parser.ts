@@ -9,7 +9,7 @@
 // Cada campo detectado viaja con una confianza, y HU-23 le muestra el borrador
 // al candidato para que confirme o corrija. Un parser por reglas se equivoca, y
 // es más honesto mostrar la duda que escribir datos falsos en el perfil.
-import { HabilidadCatalogo, clave, habilidadesMencionadas } from "../taxonomia";
+import { HabilidadCatalogo, clave, detectarRoles, habilidadesMencionadas } from "../taxonomia";
 
 export type Confianza = "alta" | "media" | "baja";
 
@@ -214,11 +214,19 @@ export class DetectorTitular implements DetectorCampo {
       return;
     }
 
-    // Si no, la línea de la cabecera que mencione una tecnología o un cargo
+    // Si no, la línea de la cabecera que mencione un rol o una tecnología
     // reconocible y no sea el nombre ya detectado.
+    //
+    // Hay que mirar los roles y no solo las tecnologías: un titular típico es
+    // "Desarrolladora Full Stack", que no contiene ninguna tecnología del
+    // catálogo pero sí un rol. Antes se perdía, y con él la afinidad de rol,
+    // que pesa el 20% del match score.
     const nombre = borrador.nombre?.valor;
     const linea = ctx.cabecera.find(
-      (l) => l !== nombre && !/[@]/.test(l) && habilidadesMencionadas(l).length > 0
+      (l) =>
+        l !== nombre &&
+        !/[@]/.test(l) &&
+        (detectarRoles(l).some((r) => !r.generico) || habilidadesMencionadas(l).length > 0)
     );
     if (linea) {
       borrador.titular = { valor: linea.slice(0, 120), confianza: "baja", evidencia: linea };

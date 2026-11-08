@@ -30,9 +30,24 @@ model Candidato {
   experiencia    Experiencia[]
   habilidades    Habilidad[]
   preferencia    Preferencia?
+  borradorCV     BorradorCV?
   postulaciones  Postulacion[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+/// HU-23 · Borrador de lo que el parser detectó en el CV, pendiente de que el
+/// candidato lo confirme. Se guarda aparte del perfil a propósito: hasta que
+/// el candidato revise, son datos inferidos y no datos suyos.
+model BorradorCV {
+  id          String    @id @default(cuid())
+  candidato   Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  candidatoId String    @unique
+  /// Nombre del archivo subido, para que el candidato sepa de dónde viene.
+  archivo     String
+  /// PerfilExtraido serializado (campos con su confianza y evidencia).
+  datos       Json
+  createdAt   DateTime  @default(now())
 }
 
 model Educacion {

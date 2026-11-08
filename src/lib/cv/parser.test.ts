@@ -94,6 +94,30 @@ describe("ParserCV · nombre y titular", () => {
     const p2 = parser.parse("HABILIDADES\nReact y Node.js con PostgreSQL en produccion");
     expect(p2.nombre?.valor).not.toBe("HABILIDADES");
   });
+
+  // Regresion: un CV sin seccion de perfil cuyo titular es un rol puro
+  // ("Desarrolladora Full Stack") no menciona ninguna tecnologia del catalogo.
+  // Antes se perdia el titular, y con el la afinidad de rol del match score.
+  it("detecta un titular que es solo un rol, sin tecnologias", () => {
+    const p = parser.parse(
+      `Laura Gomez Restrepo
+Desarrolladora Full Stack
+laura@ejemplo.com
+
+HABILIDADES
+React, TypeScript`
+    );
+    expect(p.titular?.valor).toBe("Desarrolladora Full Stack");
+  });
+
+  it("tambien detecta el titular por la tecnologia que menciona", () => {
+    const p = parser.parse(
+      `Juan Perez
+Especialista en PostgreSQL y Docker
+juan@ejemplo.com`
+    );
+    expect(p.titular?.valor).toContain("PostgreSQL");
+  });
 });
 
 describe("ParserCV · habilidades", () => {

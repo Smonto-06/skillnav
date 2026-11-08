@@ -109,6 +109,20 @@ export default async function PerfilPage({
         {searchParams.error && <Alert message={searchParams.error} />}
       </div>
 
+      {/* HU-21 · atajo para llenar el perfil desde el CV en vez de a mano. */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-acento/30 bg-acento-suave px-5 py-4">
+        <p className="text-sm text-slate-700">
+          <strong className="text-slate-900">¿Tienes tu hoja de vida a mano?</strong> Súbela y te
+          proponemos el perfil ya diligenciado para que solo lo revises.
+        </p>
+        <a
+          href="/perfil/cv"
+          className="shrink-0 rounded-full bg-acento px-4 py-2 text-sm font-semibold text-marca hover:bg-acento-hover"
+        >
+          Subir hoja de vida
+        </a>
+      </div>
+
       <datalist id="sugerencias-titular">
         {SUGERENCIAS_TITULAR.map((t) => (
           <option key={t} value={t} />
