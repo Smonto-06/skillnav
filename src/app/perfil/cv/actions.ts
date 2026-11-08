@@ -6,7 +6,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireCandidato } from "@/lib/auth";
 import { ErrorExtraccion, extraerTextoCV } from "@/lib/cv/extractores";
-import { ParserCV, type PerfilExtraido } from "@/lib/cv/parser";
+import { type PerfilExtraido } from "@/lib/cv/parser";
+import { analizarCV } from "@/lib/cv/analizar";
+import type { ResultadoAnalisis } from "@/lib/cv/motor";
 import {
   construirDatosAplicables,
   resumenAplicacion,
@@ -25,14 +27,17 @@ export async function subirCVAction(formData: FormData) {
     conError("/perfil/cv", "Selecciona un archivo.");
   }
 
-  let borrador: PerfilExtraido;
+  let analisis: ResultadoAnalisis;
   try {
     const texto = await extraerTextoCV({
       nombre: archivo.name,
       tipo: archivo.type,
       contenido: new Uint8Array(await archivo.arrayBuffer()),
     });
-    borrador = new ParserCV().parse(texto);
+    // analizarCV elige el motor con IA si hay clave y cae al de reglas si no
+    // está o si falla, así que esta llamada no puede dejar al candidato sin
+    // borrador.
+    analisis = await analizarCV(texto);
   } catch (e) {
     // Los errores de extracción traen un mensaje pensado para el candidato
     // (formato no soportado, PDF escaneado, archivo muy grande).
@@ -41,15 +46,23 @@ export async function subirCVAction(formData: FormData) {
   }
 
   // El borrador se guarda aparte del perfil: hasta que el candidato lo revise,
-  // son datos inferidos y no datos suyos (HU-23).
+  // son datos inferidos y no datos suyos (HU-23). Se guarda también qué motor
+  // lo produjo, para poder decírselo en la pantalla de revisión.
+  const borrador: PerfilExtraido = analisis.perfil;
+  const datos = {
+    ...borrador,
+    habilidadesBlandas: Array.from(borrador.habilidadesBlandas ?? []),
+    motor: analisis.motor,
+    motivoRespaldo: analisis.motivoRespaldo,
+  };
   await prisma.borradorCV.upsert({
     where: { candidatoId: candidato.id },
     create: {
       candidatoId: candidato.id,
       archivo: archivo.name,
-      datos: borrador as unknown as object,
+      datos: datos as unknown as object,
     },
-    update: { archivo: archivo.name, datos: borrador as unknown as object },
+    update: { archivo: archivo.name, datos: datos as unknown as object },
   });
 
   redirect("/perfil/cv/revisar");

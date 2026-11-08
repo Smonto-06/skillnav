@@ -54,6 +54,26 @@ npm run admin -- correo@existente.com
 Desde el panel se gestiona el catalogo de vacantes. Una vacante que ya tiene
 postulaciones no se puede eliminar, para no borrar el historial del candidato.
 
+## Analisis de hoja de vida (HU-21 a HU-23)
+
+El candidato sube su CV en PDF, DOCX o TXT y el sistema le propone un perfil
+pre-diligenciado que debe revisar antes de guardar: nada se escribe en el
+perfil sin su confirmacion.
+
+Hay **dos motores de analisis** y el sistema elige solo:
+
+| Motor | Cuando se usa | Que lo distingue |
+|---|---|---|
+| IA (`LLM_API_KEY` configurada) | Preferido | Lee el documento completo, asi que resuelve los CV a varias columnas |
+| Reglas | Respaldo automatico | No depende de red ni de claves, y es determinista |
+
+Si no hay clave, o la API falla, o se demora, o devuelve un JSON que no cumple
+la forma esperada, se usa el motor por reglas. La pantalla de revision le dice
+al candidato cual de los dos leyo su hoja de vida y, si hubo respaldo, por que.
+
+Para activar la IA basta poner `LLM_API_KEY` en el entorno (ver
+`.env.example`). Groq y Gemini tienen capa gratuita.
+
 ## Motor de compatibilidad (Match Score)
 
 El puntaje de cada vacante (`src/lib/scoring.ts`) combina seis dimensiones:

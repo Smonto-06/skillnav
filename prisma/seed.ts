@@ -6,7 +6,20 @@ async function main() {
   // Borra las vacantes del seed anterior para evitar duplicados al re-ejecutar.
   await prisma.vacante.deleteMany({
     where: {
-      empresa: { in: ["Magneto", "Bancolombia", "Rappi", "Grupo Exito", "EPM", "Accenture"] },
+      empresa: {
+        in: [
+          "Magneto",
+          "Bancolombia",
+          "Rappi",
+          "Grupo Exito",
+          "EPM",
+          "Accenture",
+          "Almacenes Flamingo",
+          "Tiendas D1",
+          "Sura",
+          "Falabella",
+        ],
+      },
     },
   });
 
@@ -70,6 +83,56 @@ async function main() {
       salario: 7000,
       modalidad: "REMOTO" as const,
       ciudad: "Bogota",
+    },
+
+    // Vacantes no técnicas. El catálogo solo tenía perfiles de tecnología, así
+    // que una hoja de vida administrativa o comercial —que es la mayoría del
+    // mercado al que apunta Magneto— sacaba un puntaje bajísimo en todas y
+    // parecía que el motor no funcionara, cuando el problema era que no había
+    // vacantes para ese perfil.
+    {
+      titulo: "Auxiliar Administrativo",
+      empresa: "Almacenes Flamingo",
+      descripcion:
+        "Apoyo en gestion documental, facturacion y atencion a proveedores en la sede administrativa.",
+      requisitos: "Atencion al cliente, Organizacion, Gestion del tiempo, Responsabilidad",
+      experienciaMin: 1,
+      salario: 1400,
+      modalidad: "PRESENCIAL" as const,
+      ciudad: "Medellin",
+    },
+    {
+      titulo: "Asesor Comercial",
+      empresa: "Falabella",
+      descripcion:
+        "Asesoria y venta en piso, manejo de caja y cumplimiento de metas comerciales.",
+      requisitos: "Ventas, Atencion al cliente, Comunicacion, Trabajo en equipo",
+      experienciaMin: 1,
+      salario: 1600,
+      modalidad: "PRESENCIAL" as const,
+      ciudad: "Medellin",
+    },
+    {
+      titulo: "Cajero",
+      empresa: "Tiendas D1",
+      descripcion:
+        "Manejo de caja registradora, atencion al cliente y apoyo en reabastecimiento de tienda.",
+      requisitos: "Manejo de caja, Atencion al cliente, Puntualidad, Trabajo bajo presion",
+      experienciaMin: 0,
+      salario: 1300,
+      modalidad: "PRESENCIAL" as const,
+      ciudad: "Medellin",
+    },
+    {
+      titulo: "Asistente de Servicio al Cliente",
+      empresa: "Sura",
+      descripcion:
+        "Atencion telefonica y por chat a usuarios, registro de casos y seguimiento de solicitudes.",
+      requisitos: "Atencion al cliente, Comunicacion, Gestion del tiempo, Ingles",
+      experienciaMin: 1,
+      salario: 1800,
+      modalidad: "HIBRIDO" as const,
+      ciudad: "Medellin",
     },
   ];
 

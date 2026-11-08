@@ -6,6 +6,8 @@ import { requireCandidato } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Alert, Card, Field, inputClass, SubmitButton } from "@/components/ui";
 import { resumenExtraccion, type Confianza, type PerfilExtraido } from "@/lib/cv/parser";
+import { etiquetaMotor } from "@/lib/cv/analizar";
+import type { NombreMotor } from "@/lib/cv/motor";
 import { aplicarCVAction, descartarBorradorAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -42,8 +44,12 @@ export default async function RevisarCVPage({
   const guardado = await prisma.borradorCV.findUnique({ where: { candidatoId: candidato.id } });
   if (!guardado) redirect("/perfil/cv");
 
-  const b = guardado.datos as unknown as PerfilExtraido;
+  const b = guardado.datos as unknown as PerfilExtraido & {
+    motor?: NombreMotor;
+    motivoRespaldo?: string;
+  };
   const r = resumenExtraccion(b);
+  const motor: NombreMotor = b.motor ?? "reglas";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -60,6 +66,25 @@ export default async function RevisarCVPage({
           <Alert message={searchParams.error} />
         </div>
       )}
+
+      {/* Qué leyó el CV. Si se prometió análisis con IA, el candidato tiene
+          derecho a saber cuándo no fue la IA la que lo leyó. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <span
+          className={`rounded-full border px-3 py-1 font-medium ${
+            motor === "llm"
+              ? "border-acento/40 bg-acento-suave text-acento-texto"
+              : "border-slate-200 bg-slate-50 text-slate-600"
+          }`}
+        >
+          {etiquetaMotor(motor)}
+        </span>
+        {b.motivoRespaldo && (
+          <span className="text-slate-500">
+            Se usó el análisis por reglas porque {b.motivoRespaldo}.
+          </span>
+        )}
+      </div>
 
       {/* Un CV a varias columnas sale desordenado del PDF: se avisa en vez de
           presentar el resultado como si fuera igual de fiable. */}
