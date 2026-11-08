@@ -31,7 +31,7 @@ export interface DatosAplicables {
     contacto?: string;
     linkedin?: string;
   };
-  habilidades: { nombre: string }[];
+  habilidades: { nombre: string; tipo: "TECNICA" | "BLANDA" }[];
   experiencias: {
     cargo: string;
     empresa: string;
@@ -94,9 +94,19 @@ export function construirDatosAplicables(
   // Solo habilidades que el parser realmente detectó: así un formulario
   // manipulado no puede inyectar habilidades que nunca estuvieron en el CV.
   const detectadas = new Set(borrador.habilidades.valor);
+  // El parser marca cuáles son blandas o idiomas; el resto son técnicas. El
+  // modelo ya distingue los dos tipos y el scoring solo pondera las técnicas.
+  const blandas = new Set(
+    borrador.habilidadesBlandas instanceof Set
+      ? Array.from(borrador.habilidadesBlandas)
+      : (borrador.habilidadesBlandas ?? [])
+  );
   const habilidades = Array.from(
     new Set(seleccion.habilidades.map((h) => h.trim()).filter((h) => detectadas.has(h)))
-  ).map((nombre) => ({ nombre }));
+  ).map((nombre) => ({
+    nombre,
+    tipo: blandas.has(nombre) ? ("BLANDA" as const) : ("TECNICA" as const),
+  }));
 
   const experiencias = seleccion.experiencias
     .map((i) => borrador.experiencias.valor[i])

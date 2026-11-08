@@ -10,6 +10,7 @@
 // al candidato para que confirme o corrija. Un parser por reglas se equivoca, y
 // es más honesto mostrar la duda que escribir datos falsos en el perfil.
 import { HabilidadCatalogo, clave, detectarRoles, habilidadesMencionadas } from "../taxonomia";
+import { blandasMencionadas, idiomasMencionados } from "./blandas";
 
 export type Confianza = "alta" | "media" | "baja";
 
@@ -43,8 +44,15 @@ export interface PerfilExtraido {
   linkedin?: CampoDetectado<string>;
   titular?: CampoDetectado<string>;
   habilidades: CampoDetectado<string[]>;
+  /** Cuáles de las habilidades son blandas o idiomas (el resto son técnicas). */
+  habilidadesBlandas?: Set<string> | string[];
   experiencias: CampoDetectado<ExperienciaDetectada[]>;
   educacion: CampoDetectado<EducacionDetectada[]>;
+  /**
+   * true si el CV venía a varias columnas y el reparto por secciones no era
+   * fiable. Se avisa al candidato para que revise con más cuidado (HU-23).
+   */
+  layoutMezclado: boolean;
   /** Texto completo, por si el candidato quiere revisar el original. */
   textoOriginal: string;
 }
@@ -88,6 +96,13 @@ const ENCABEZADOS: Record<string, string[]> = {
     "technical skills",
   ],
   perfil: ["perfil profesional", "perfil", "resumen", "acerca de mi", "sobre mi", "summary", "about"],
+  // Estos tres no aportan datos al perfil, pero reconocerlos es lo que permite
+  // darse cuenta de que el CV viene a varias columnas: si no están en el
+  // catálogo, pasan por contenido de la sección anterior y el desorden se
+  // vuelve invisible.
+  idiomas: ["idiomas", "languages", "nivel de idiomas"],
+  contacto: ["contacto", "datos de contacto", "informacion de contacto", "contact"],
+  referencias: ["referencias", "referencias personales", "referencias laborales", "references"],
 };
 
 export class ContextoCV {
@@ -132,6 +147,59 @@ export class ContextoCV {
     return secciones;
   }
 
+  /**
+   * Un CV a dos columnas rompe el supuesto de "encabezado seguido de su
+   * contenido": pdf.js extrae el texto en orden de dibujo, no de lectura, así
+   * que los encabezados de la columna derecha salen juntos y su contenido
+   * aparece antes o después, mezclado con el de la izquierda.
+   *
+   * Síntoma observable: encabezados pegados entre sí (secciones vacías) o una
+   * sección que se queda con casi todo el documento porque es la última.
+   * Cuando eso pasa, repartir por secciones hace más daño que bien y cada
+   * detector debe mirar el documento completo.
+   */
+  static layoutEsConfiable(lineas: string[], secciones: Map<string, string[]>): boolean {
+    if (secciones.size < 2) return false;
+
+    // Señal directa: dos encabezados seguidos, sin una sola línea de contenido
+    // entre ellos. En un CV de una columna eso no pasa.
+    let seguidos = 0;
+    let anterior = false;
+    for (const l of lineas) {
+      const esEncabezado = ContextoCV.encabezadoDe(l) !== null;
+      if (esEncabezado && anterior) seguidos++;
+      anterior = esEncabezado;
+    }
+    if (seguidos >= 2) return false;
+
+    const tamanos = Array.from(secciones.values()).map((v) => v.length);
+    const vacias = tamanos.filter((n) => n === 0).length;
+    // Dos o más encabezados sin contenido propio: están pegados.
+    if (vacias >= 2) return false;
+
+    // Una sola sección se quedó con más del 60% del documento: se tragó el
+    // resto por estar al final del orden de dibujo.
+    const total = lineas.length;
+    const mayor = Math.max(...tamanos);
+    if (total > 0 && mayor / total > 0.6) return false;
+
+    return true;
+  }
+
+  /** true si el reparto por secciones es poco fiable (CV a varias columnas). */
+  get layoutMezclado(): boolean {
+    return !ContextoCV.layoutEsConfiable(this.lineas, this.secciones);
+  }
+
+  /**
+   * Líneas donde buscar un campo. Con layout confiable, las de su sección;
+   * con layout mezclado, todo el documento, porque la sección no significa nada.
+   */
+  fuente(nombre: string): string[] {
+    if (this.layoutMezclado) return this.lineas;
+    return this.secciones.get(nombre) ?? [];
+  }
+
   seccion(nombre: string): string[] {
     return this.secciones.get(nombre) ?? [];
   }
@@ -147,9 +215,33 @@ export class ContextoCV {
 // ---------------------------------------------------------------------------
 
 const RE_EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]{2,}/;
-// Teléfonos colombianos y formatos internacionales sencillos.
-const RE_TELEFONO = /(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}\b/;
 const RE_LINKEDIN = /(?:linkedin\.com\/in\/|linkedin:\s*)([\w%-]+)/i;
+
+// Un documento de identidad se parece mucho a un teléfono. Si la línea lo
+// anuncia como cédula, NIT o pasaporte, no es un teléfono.
+const RE_DOCUMENTO = /\b(c\.?c\.?|cedula|cédula|nit|t\.?i\.?|pasaporte|documento|identificacion|identificación)\b/i;
+
+/**
+ * Celular colombiano: 10 dígitos que empiezan por 3, con o sin indicativo +57
+ * y con cualquier separación interna. Se exige el 3 inicial a propósito: es lo
+ * que distingue un celular de una cédula de 10 dígitos.
+ */
+const RE_CELULAR_CO = /(?:\+?57[\s.-]?)?\b3\d{2}[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b/;
+/** Fijo colombiano: indicativo de ciudad + 7 dígitos. */
+const RE_FIJO_CO = /(?:\+?57[\s.-]?)?\(?\d{1,3}\)?[\s.-]?[2-8]\d{2}[\s.-]?\d{2}[\s.-]?\d{2}\b/;
+
+/** Extrae un teléfono descartando las líneas que anuncian un documento. */
+export function telefonoDe(lineas: string[]): { valor: string; evidencia: string } | null {
+  const candidatas = lineas.filter((l) => !RE_DOCUMENTO.test(l));
+  // Primero celulares: son los que un candidato quiere que lo contacten.
+  for (const re of [RE_CELULAR_CO, RE_FIJO_CO]) {
+    for (const linea of candidatas) {
+      const m = linea.match(re);
+      if (m) return { valor: m[0].trim(), evidencia: linea.slice(0, 80) };
+    }
+  }
+  return null;
+}
 
 export class DetectorContacto implements DetectorCampo {
   readonly campo = "contacto";
@@ -161,10 +253,11 @@ export class DetectorContacto implements DetectorCampo {
       borrador.email = { valor: email.toLowerCase(), confianza: "alta", evidencia: email };
     }
 
-    const tel = ctx.texto.match(RE_TELEFONO)?.[0]?.trim();
+    const tel = telefonoDe(ctx.lineas);
     if (tel) {
-      // Media: un número de 10 dígitos también puede ser una cédula o un NIT.
-      borrador.telefono = { valor: tel, confianza: "media", evidencia: tel };
+      // Media incluso filtrando documentos: un CV con referencias trae varios
+      // teléfonos y no hay forma seguraisima de saber cuál es el del candidato.
+      borrador.telefono = { valor: tel.valor, confianza: "media", evidencia: tel.evidencia };
     }
 
     const linkedin = ctx.texto.match(RE_LINKEDIN);
@@ -178,17 +271,64 @@ export class DetectorContacto implements DetectorCampo {
   }
 }
 
+/** Palabras que delatan que una línea pertenece a referencias, no al candidato. */
+const RE_REFERENCIAS = /\b(referencia|referencias|references|jefe|contacto de)\b/i;
+
+const esLineaNombre = (l: string) =>
+  !ContextoCV.encabezadoDe(l) && !/[@\d]/.test(l) && l.length <= 60;
+
+/**
+ * Nombre partido en varias líneas de una sola palabra en mayúsculas
+ * ("SAMUEL" / "MONTOYA" / "ESPINOSA"): así lo renderizan las plantillas que
+ * ponen el nombre como título grande, y pdf.js lo devuelve línea por línea.
+ */
+export function nombrePorMayusculas(lineas: string[]): string | null {
+  const esPalabraMayus = (l: string) =>
+    /^[A-ZÁÉÍÓÚÑÜ]{2,}$/.test(l.trim()) && !ContextoCV.encabezadoDe(l);
+
+  let mejor: string[] = [];
+  let actual: string[] = [];
+  for (const l of lineas) {
+    if (esPalabraMayus(l)) {
+      actual.push(l.trim());
+      if (actual.length > mejor.length) mejor = [...actual];
+    } else {
+      actual = [];
+    }
+  }
+  // Al menos dos palabras: una sola en mayúsculas suele ser un encabezado
+  // que no está en nuestro catálogo ("PERFIL", "LOGROS").
+  return mejor.length >= 2 ? mejor.join(" ") : null;
+}
+
 export class DetectorNombre implements DetectorCampo {
   readonly campo = "nombre";
 
   detectar(ctx: ContextoCV, borrador: PerfilExtraido): void {
-    // Heurística: el nombre suele ser la primera línea corta, de 2 a 4
-    // palabras, sin dígitos ni arroba y sin ser un encabezado de sección.
-    const candidata = ctx.cabecera.find((l) => {
-      if (ContextoCV.encabezadoDe(l)) return false;
-      if (/[@\d]/.test(l)) return false;
+    // 1) Nombre como título grande partido en líneas en mayúsculas.
+    const mayusculas = nombrePorMayusculas(ctx.lineas);
+    if (mayusculas) {
+      borrador.nombre = {
+        valor: mayusculas
+          .split(" ")
+          .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
+          .join(" "),
+        confianza: "media",
+        evidencia: mayusculas,
+      };
+      return;
+    }
+
+    // 2) Primera línea corta de 2 a 4 palabras, descartando las que pertenecen
+    // al bloque de referencias: en un CV con referencias, el primer nombre que
+    // aparece puede ser el de la referencia y no el del candidato.
+    const indiceReferencias = ctx.lineas.findIndex((l) => RE_REFERENCIAS.test(l));
+    const candidata = ctx.cabecera.find((l, i) => {
+      if (!esLineaNombre(l)) return false;
+      // Si ya pasamos el encabezado de referencias, esta línea no es confiable.
+      if (indiceReferencias >= 0 && i > indiceReferencias) return false;
       const palabras = l.split(/\s+/);
-      return palabras.length >= 2 && palabras.length <= 4 && l.length <= 60;
+      return palabras.length >= 2 && palabras.length <= 4;
     });
     if (candidata) {
       // Baja: es la heurística más frágil de todas y conviene que el
@@ -202,8 +342,10 @@ export class DetectorTitular implements DetectorCampo {
   readonly campo = "titular";
 
   detectar(ctx: ContextoCV, borrador: PerfilExtraido): void {
-    // Primero la sección de perfil, si el CV la trae.
-    const perfil = ctx.seccion("perfil");
+    // Primero la sección de perfil, si el CV la trae y el layout es fiable:
+    // con columnas mezcladas, la primera línea de "perfil" puede ser cualquier
+    // cosa de otra columna (en el CV de prueba era un cargo con fechas).
+    const perfil = ctx.layoutMezclado ? [] : ctx.seccion("perfil");
     if (perfil.length) {
       const linea = perfil[0];
       borrador.titular = {
@@ -226,6 +368,8 @@ export class DetectorTitular implements DetectorCampo {
       (l) =>
         l !== nombre &&
         !/[@]/.test(l) &&
+        // Una línea con fechas es una entrada de experiencia, no un titular.
+        !RE_PERIODO.test(l) &&
         (detectarRoles(l).some((r) => !r.generico) || habilidadesMencionadas(l).length > 0)
     );
     if (linea) {
@@ -238,39 +382,73 @@ export class DetectorHabilidades implements DetectorCampo {
   readonly campo = "habilidades";
 
   detectar(ctx: ContextoCV, borrador: PerfilExtraido): void {
-    // La sección de habilidades es la fuente fiable; si no existe, se recorre
-    // el CV completo, con menos confianza porque puede capturar tecnologías
-    // mencionadas de paso ("trabajé con un equipo de React").
     const seccion = ctx.seccion("habilidades");
-    const fuente = seccion.length ? seccion.join("\n") : ctx.texto;
-    const encontradas: HabilidadCatalogo[] = habilidadesMencionadas(fuente);
+    const confiable = !ctx.layoutMezclado && seccion.length > 0;
+    // Con layout mezclado la sección no significa nada: se busca en todo el
+    // documento. Es menos preciso pero mucho mejor que devolver cero.
+    const fuente = confiable ? seccion.join("\n") : ctx.texto;
 
-    const nombres = Array.from(new Set(encontradas.map((h) => h.nombre))).sort();
+    const tecnicas: HabilidadCatalogo[] = habilidadesMencionadas(fuente);
+    // Las blandas y los idiomas son el único contenido de habilidades en los
+    // perfiles no técnicos, que son la mayoría del mercado.
+    const blandas = blandasMencionadas(fuente);
+    const idiomas = idiomasMencionados(fuente);
+
+    const nombres = Array.from(
+      new Set([...tecnicas.map((h) => h.nombre), ...blandas, ...idiomas])
+    ).sort();
+
+    const partes: string[] = [];
+    if (tecnicas.length) partes.push(`${tecnicas.length} técnica(s)`);
+    if (blandas.length) partes.push(`${blandas.length} blanda(s)`);
+    if (idiomas.length) partes.push(`${idiomas.length} idioma(s)`);
+
     borrador.habilidades = {
       valor: nombres,
-      confianza: seccion.length ? "alta" : "media",
-      evidencia: seccion.length
-        ? "Sección de habilidades del CV"
-        : "Tecnologías mencionadas en todo el documento",
+      confianza: confiable ? "alta" : "media",
+      evidencia: nombres.length
+        ? `${partes.join(", ")} · ${confiable ? "sección de habilidades" : "todo el documento"}`
+        : "No se reconocieron habilidades del catálogo",
     };
+    borrador.habilidadesBlandas = new Set([...blandas, ...idiomas]);
   }
 }
 
-/** "2023 - 2026", "2023 – actual", "mar 2024 - dic 2025" */
+/** "2023 - 2026", "2023 – actual", "mar 2024 - dic 2025". Declarado arriba para que
+ * el detector de titular pueda excluir lineas con fechas. */
 const RE_PERIODO =
   /\b(\d{4})\s*[-–—a]{1,3}\s*(\d{4}|actual|presente|hoy|actualidad|present)\b/i;
 const RE_ANIO_SUELTO = /\b(19|20)\d{2}\b/;
+
+/**
+ * Palabras que indican que una línea con fechas habla de un cargo y no de un
+ * estudio. Sirven para separar experiencia de educación cuando el layout está
+ * mezclado y no se puede confiar en la sección.
+ */
+const RE_CARGO = /\b(trabajad|emplead|asesor|analista|desarrollad|ingenier|tecnic|técnic|auxiliar|asistente|coordinad|jefe|gerente|director|supervisor|operari|vended|cajer|practicante|pasante|freelance|consultor|lider|líder|administrad|contad|secretari|mesero|domicili|almacen|almacén|tienda|servicio|atencion|atención|soporte|monitor)/i;
+
+/** Palabras que indican que la línea habla de formación. */
+const RE_EDUCATIVO = /\b(colegio|universidad|instituto|institucion|institución|escuela|sena|politecnic|politécnic|bachiller|bachillerato|grado|graduad|pregrado|posgrado|maestria|maestría|doctorad|especializacion|especialización|diplomad|carrera|licenciatura|tecnologo|tecnólogo|curso|certificad|certificacion|certificación|estudiante|egresad|titulo|título)/i;
 
 export class DetectorExperiencia implements DetectorCampo {
   readonly campo = "experiencia";
 
   detectar(ctx: ContextoCV, borrador: PerfilExtraido): void {
-    const lineas = ctx.seccion("experiencia");
+    const mezclado = ctx.layoutMezclado;
+    const lineas = ctx.fuente("experiencia");
     const encontradas: ExperienciaDetectada[] = [];
 
     for (const linea of lineas) {
       const periodo = linea.match(RE_PERIODO);
       if (!periodo) continue;
+
+      // Con layout mezclado toda línea con fechas es candidata, así que hay
+      // que distinguir cargo de estudio por el vocabulario. Sin este filtro,
+      // "2023 Graduado de Bachillerato" entraría como experiencia laboral.
+      if (mezclado) {
+        if (!RE_CARGO.test(linea)) continue;
+        if (RE_EDUCATIVO.test(linea) && !RE_CARGO.test(linea)) continue;
+      }
 
       // Una entrada de experiencia suele ser "Cargo - Empresa (2023 - 2026)".
       // Se quita el periodo y se parte por el separador.
@@ -300,9 +478,10 @@ export class DetectorExperiencia implements DetectorCampo {
       // Media incluso con sección: el formato de las entradas varía mucho de
       // un CV a otro y los cargos pueden quedar mal recortados.
       confianza: encontradas.length ? "media" : "baja",
-      evidencia: lineas.length
-        ? `${encontradas.length} entrada(s) con fechas en la sección de experiencia`
-        : "No se encontró una sección de experiencia",
+      evidencia: encontradas.length
+        ? `${encontradas.length} cargo(s) con fechas` +
+          (mezclado ? " (buscado en todo el documento)" : " en la sección de experiencia")
+        : "No se encontraron cargos con fechas",
     };
   }
 }
@@ -311,10 +490,18 @@ export class DetectorEducacion implements DetectorCampo {
   readonly campo = "educacion";
 
   detectar(ctx: ContextoCV, borrador: PerfilExtraido): void {
-    const lineas = ctx.seccion("educacion");
+    const mezclado = ctx.layoutMezclado;
+    const lineas = ctx.fuente("educacion");
     const encontradas: EducacionDetectada[] = [];
 
     for (const linea of lineas) {
+      // Con layout mezclado la sección se traga medio documento. Exigir
+      // vocabulario educativo evita que entren frases del "sobre mí" como
+      // estudios, que era justo lo que estaba pasando.
+      if (mezclado && !RE_EDUCATIVO.test(linea)) continue;
+      // Una línea que habla de un cargo ya la tomó el detector de experiencia.
+      if (mezclado && RE_CARGO.test(linea) && !RE_EDUCATIVO.test(linea)) continue;
+
       const anio = linea.match(RE_PERIODO)?.[2] ?? linea.match(RE_ANIO_SUELTO)?.[0];
       const sinAnio = linea
         .replace(RE_PERIODO, "")
@@ -325,7 +512,7 @@ export class DetectorEducacion implements DetectorCampo {
         .split(/\s[-–—|·]\s|\sen\s|,\s/i)
         .map((p) => p.trim())
         .filter(Boolean);
-      if (!partes[0]) continue;
+      if (!partes[0] || partes[0].length < 4) continue;
 
       encontradas.push({
         titulo: partes[0].slice(0, 160),
@@ -337,9 +524,10 @@ export class DetectorEducacion implements DetectorCampo {
     borrador.educacion = {
       valor: encontradas,
       confianza: encontradas.length ? "media" : "baja",
-      evidencia: lineas.length
-        ? `${encontradas.length} entrada(s) en la sección de educación`
-        : "No se encontró una sección de educación",
+      evidencia: encontradas.length
+        ? `${encontradas.length} entrada(s) de formación` +
+          (mezclado ? " (buscado en todo el documento)" : " en la sección de educación")
+        : "No se encontró formación académica",
     };
   }
 }
@@ -367,6 +555,7 @@ export class ParserCV {
       habilidades: { valor: [], confianza: "baja", evidencia: "" },
       experiencias: { valor: [], confianza: "baja", evidencia: "" },
       educacion: { valor: [], confianza: "baja", evidencia: "" },
+      layoutMezclado: ctx.layoutMezclado,
       textoOriginal: texto,
     };
 

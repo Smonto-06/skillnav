@@ -61,6 +61,18 @@ export default async function RevisarCVPage({
         </div>
       )}
 
+      {/* Un CV a varias columnas sale desordenado del PDF: se avisa en vez de
+          presentar el resultado como si fuera igual de fiable. */}
+      {b.layoutMezclado && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-relaxed text-amber-900">
+          <strong>Tu hoja de vida viene a varias columnas.</strong> Los PDF con ese diseño se leen
+          en el orden en que fueron dibujados, no en el orden en que tú los lees, así que el texto
+          llega entremezclado. Hicimos lo posible por separar cada dato, pero es probable que algo
+          haya quedado partido o en el lugar equivocado. Revisa con calma y corrige lo que haga
+          falta: nada se guarda sin tu confirmación.
+        </div>
+      )}
+
       <form action={aplicarCVAction} className="mt-6 space-y-5">
         <Card>
           <h2 className="font-semibold text-slate-900">Datos personales</h2>

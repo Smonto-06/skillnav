@@ -80,7 +80,7 @@ export async function aplicarCVAction(formData: FormData) {
       const nuevas = datos.habilidades.filter((h) => !yaEstan.has(h.nombre.toLowerCase()));
       if (nuevas.length) {
         await tx.habilidad.createMany({
-          data: nuevas.map((h) => ({ candidatoId: candidato.id, nombre: h.nombre })),
+          data: nuevas.map((h) => ({ candidatoId: candidato.id, nombre: h.nombre, tipo: h.tipo })),
         });
       }
     }
