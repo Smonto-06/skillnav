@@ -131,3 +131,41 @@ describe("aPerfilExtraido · validacion de la respuesta", () => {
     expect(p.habilidades.valor.filter((h) => h === "Excel")).toHaveLength(1);
   });
 });
+
+// Los dos motores se suman: el catalogo aporta cobertura sobre el texto crudo
+// aunque el modelo no haya listado esas habilidades.
+describe("aPerfilExtraido · union con el catalogo", () => {
+  const minima = {
+    habilidades: [],
+    habilidadesBlandas: [],
+    experiencias: [],
+    educacion: [],
+  };
+
+  it("agrega habilidades del catalogo que el modelo no listo", () => {
+    const texto = "Realizo labores de atencion al cliente y manejo de caja registradora.";
+    const p = aPerfilExtraido({ ...minima, habilidades: ["Liderazgo"] }, texto);
+    expect(p.habilidades.valor).toContain("Liderazgo");
+    // El modelo no las menciono, pero estan en el texto del CV.
+    expect(p.habilidades.valor).toContain("Atención al cliente");
+    expect(p.habilidades.valor).toContain("Manejo de caja");
+  });
+
+  it("no duplica lo que el modelo y el catalogo encuentran por igual", () => {
+    const p = aPerfilExtraido({ ...minima, habilidades: ["Liderazgo"] }, "Liderazgo de equipos");
+    expect(p.habilidades.valor.filter((h) => h === "Liderazgo")).toHaveLength(1);
+  });
+
+  it("clasifica como tecnica una habilidad del catalogo tecnico", () => {
+    const p = aPerfilExtraido({ ...minima, habilidades: [] }, "Manejo de React y PostgreSQL");
+    const blandas = p.habilidadesBlandas instanceof Set ? p.habilidadesBlandas : new Set<string>();
+    expect(p.habilidades.valor).toContain("React");
+    expect(blandas.has("React")).toBe(false);
+  });
+
+  it("reporta en la evidencia cuanto aporto cada fuente", () => {
+    const p = aPerfilExtraido({ ...minima, habilidades: ["Liderazgo"] }, "atencion al cliente");
+    expect(p.habilidades.evidencia).toMatch(/modelo/);
+    expect(p.habilidades.evidencia).toMatch(/catálogo/);
+  });
+});

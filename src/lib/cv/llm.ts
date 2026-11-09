@@ -18,6 +18,7 @@ import { z } from "zod";
 import type { MotorAnalisisCV } from "./motor";
 import type { Confianza, PerfilExtraido } from "./parser";
 import { blandasMencionadas, idiomasMencionados } from "./blandas";
+import { habilidadesMencionadas } from "../taxonomia";
 
 /** Proveedores soportados. Ambos tienen capa gratuita. */
 export type Proveedor = "groq" | "gemini";
@@ -30,8 +31,11 @@ export interface ConfigLLM {
   timeoutMs: number;
 }
 
+// Verificados contra la API el 2026-11-09. Groq rota su catálogo de modelos y
+// responde 404 a los que retira, así que conviene revisarlo si aparece ese
+// error: `GET https://api.groq.com/openai/v1/models` lista los vigentes.
 const MODELOS_POR_DEFECTO: Record<Proveedor, string> = {
-  groq: "llama-3.3-70b-versatile",
+  groq: "openai/gpt-oss-120b",
   gemini: "gemini-2.0-flash",
 };
 
@@ -217,13 +221,32 @@ export function aPerfilExtraido(r: RespuestaLLM, textoOriginal: string): PerfilE
 
   const base: Confianza = r.confianzaGeneral ?? "media";
 
+  // Los dos motores tienen fortalezas distintas y se suman en vez de competir.
+  //
+  // Probándolo con un CV real: el modelo estructura mucho mejor la experiencia
+  // y la educación (une entradas partidas entre columnas), pero es más
+  // conservador con las habilidades y se dejó 4 que el catálogo sí encontraba
+  // —"atención al cliente", "manejo de caja", "puntualidad", "responsabilidad"—
+  // porque estaban mencionadas en el "sobre mí" y no en una lista.
+  //
+  // El barrido por catálogo es local y gratis, así que se corre igual sobre el
+  // texto completo y se une: el modelo aporta estructura, el catálogo aporta
+  // cobertura.
+  const porCatalogo = [
+    ...habilidadesMencionadas(textoOriginal).map((h) => h.nombre),
+    ...blandasMencionadas(textoOriginal),
+    ...idiomasMencionados(textoOriginal),
+  ];
+  const todas = Array.from(new Set([...r.habilidades, ...porCatalogo]));
+
   // La clasificación blanda/técnica se cruza con el catálogo propio: si el
   // modelo manda "React" como blanda, el catálogo manda y lo deja técnica.
   const blandasDelModelo = new Set(r.habilidadesBlandas);
   const blandas = new Set<string>();
-  for (const h of r.habilidades) {
+  for (const h of todas) {
     const esBlandaPorCatalogo = blandasMencionadas(h).length > 0 || idiomasMencionados(h).length > 0;
-    if (esBlandaPorCatalogo || blandasDelModelo.has(h)) blandas.add(h);
+    const esTecnicaPorCatalogo = habilidadesMencionadas(h).length > 0;
+    if (esBlandaPorCatalogo || (blandasDelModelo.has(h) && !esTecnicaPorCatalogo)) blandas.add(h);
   }
 
   return {
@@ -235,9 +258,9 @@ export function aPerfilExtraido(r: RespuestaLLM, textoOriginal: string): PerfilE
     linkedin: campo(limpio(r.linkedin), "alta", "Identificado por el modelo"),
     titular: campo(limpio(r.titular), base, "Identificado por el modelo"),
     habilidades: {
-      valor: Array.from(new Set(r.habilidades)).sort(),
+      valor: todas.sort(),
       confianza: base,
-      evidencia: `${r.habilidades.length} habilidad(es) identificadas por el modelo`,
+      evidencia: `${r.habilidades.length} identificada(s) por el modelo, ${todas.length} en total sumando el catálogo`,
     },
     habilidadesBlandas: blandas,
     experiencias: {
