@@ -32,6 +32,15 @@ describe("EvaluadorSalario · aislado", () => {
   it("es neutro sin dato en vez de penalizar al candidato", () => {
     expect(ev.evaluar(perfil, { requisitos: [], salario: null }).valor).toBe(0.5);
   });
+
+  it("trata el cero como salario no publicado, no como oferta de cero pesos", () => {
+    // El formulario de la vacante deja 0 cuando el campo va vacio. Con el
+    // guard anterior (== null) ese 0 pasaba como oferta real y, al caer dentro
+    // del rango, le daba el maximo a una vacante que no paga nada.
+    const r = ev.evaluar({ habilidades: [] }, { requisitos: [], salario: 0 });
+    expect(r.valor).toBe(0.5);
+    expect(r.motivo).toMatch(/no publica/i);
+  });
 });
 
 describe("EvaluadorModalidad · aislado", () => {
@@ -66,6 +75,23 @@ describe("EvaluadorUbicacion · aislado", () => {
   it("la ciudad deja de importar si el trabajo es remoto", () => {
     const p = { habilidades: [], ciudad: "Medellin" };
     expect(ev.evaluar(p, { requisitos: [], ciudad: "Bogota", modalidad: "REMOTO" }).valor).toBe(1);
+  });
+
+  it("es neutro si la vacante no indica la ciudad", () => {
+    // La ciudad de la vacante es opcional. Antes se comparaba contra "" y el
+    // candidato perdia la dimension entera con un motivo que era falso: no se
+    // puede afirmar que este en otra ciudad si no se sabe cual es.
+    const p = { habilidades: [], ciudad: "Medellin", modalidad: "PRESENCIAL" as const };
+    for (const ciudad of [null, "", "   "]) {
+      const r = ev.evaluar(p, { requisitos: [], ciudad, modalidad: "PRESENCIAL" });
+      expect(r.valor).toBe(0.5);
+      expect(r.motivo).not.toMatch(/otra ciudad/i);
+    }
+  });
+
+  it("sigue penalizando cuando la vacante si esta en otra ciudad", () => {
+    const p = { habilidades: [], ciudad: "Medellin", modalidad: "PRESENCIAL" as const };
+    expect(ev.evaluar(p, { requisitos: [], ciudad: "Bogota", modalidad: "PRESENCIAL" }).valor).toBe(0);
   });
 });
 

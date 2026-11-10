@@ -30,11 +30,15 @@ export interface Recomendacion<V extends VacanteInput = VacanteInput> extends Re
 }
 
 // Convierte "React, TypeScript, Node" -> ["React","TypeScript","Node"].
+//
+// Se descartan los trozos sin letras ni dígitos: en un "React, -, Node"
+// escrito a mano, el guión quedaba como un requisito más, siempre incumplido,
+// que hundía el promedio de la dimensión con más peso del Match Score.
 export function parseRequisitos(requisitos?: string | null): string[] {
   return (requisitos ?? "")
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter((s) => /[\p{L}\p{N}]/u.test(s));
 }
 
 export function buildRecommendations<V extends VacanteInput>(

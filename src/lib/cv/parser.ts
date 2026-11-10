@@ -214,7 +214,18 @@ export class ContextoCV {
 // Detectores
 // ---------------------------------------------------------------------------
 
-const RE_EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]{2,}/;
+/**
+ * Correo electrónico.
+ *
+ * Los cuantificadores van acotados a propósito. Con `[\w.+-]+` sin tope, una
+ * corrida larga de caracteres válidos que no termine en `@` —una línea de
+ * guiones separadora, un bloque en base64— hace que el motor retroceda desde
+ * cada posición y el costo pasa a ser cuadrático: medido sobre el parser real,
+ * 20.000 guiones tardaban 255 ms y 60.000 tardaban 2,4 s, bloqueando el único
+ * hilo de Node para todos los usuarios. Los topes salen del propio formato:
+ * 64 caracteres la parte local y 63 cada etiqueta del dominio (RFC 5321).
+ */
+const RE_EMAIL = /[\w.+-]{1,64}@[\w-]{1,63}\.[\w.-]{2,63}/;
 const RE_LINKEDIN = /(?:linkedin\.com\/in\/|linkedin:\s*)([\w%-]+)/i;
 
 // Un documento de identidad se parece mucho a un teléfono. Si la línea lo

@@ -37,6 +37,23 @@ describe("taxonomia", () => {
     expect(detectarRoles("Desarrollador iOS")[0].nombre).toBe("Móvil");
   });
 
+  it("no confunde palabras que contienen alias largos", () => {
+    // Esta era la rama sin cubrir. Los alias de 5 o más caracteres se buscaban
+    // como subcadena, así que "automóviles" activaba el rol Móvil y un
+    // vendedor sacaba 95% contra una vacante de desarrollo móvil.
+    expect(detectarRoles("Vendedor de automóviles")).toEqual([]);
+    expect(detectarRoles("Mecánico de automóviles")).toEqual([]);
+    expect(detectarRoles("Analista de confrontación de saldos")).toEqual([]);
+  });
+
+  it("sigue reconociendo los alias de varias palabras", () => {
+    // El alias vive en el catálogo sin espacios ("desarrolladordeapis"), así
+    // que tiene que coincidir con una secuencia de palabras contiguas.
+    expect(detectarRoles("Desarrollador de APIs")[0].nombre).toBe("Backend");
+    expect(detectarRoles("Desarrollador Móvil")[0].nombre).toBe("Móvil");
+    expect(detectarRoles("Administrador de Bases de Datos").length).toBeGreaterThan(0);
+  });
+
   it("reconoce requisitos genéricos de área", () => {
     expect(areasDeRequisito("Experiencia en backend")).toEqual(["backend"]);
   });

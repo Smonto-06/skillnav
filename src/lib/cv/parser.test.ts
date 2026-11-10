@@ -232,3 +232,45 @@ describe("resumenExtraccion", () => {
     expect(r.experiencias).toBe(0);
   });
 });
+
+describe("ParserCV · robustez ante texto adversario", () => {
+  // La deteccion del correo recorria todo el texto con un cuantificador sin
+  // tope. Una corrida larga de caracteres validos que no termina en "@" hacia
+  // retroceder al motor desde cada posicion: costo cuadratico y el unico hilo
+  // de Node bloqueado para todos los usuarios. Medido antes del arreglo:
+  // 20.000 guiones = 255 ms, 60.000 = 2.346 ms.
+  const conGuiones = (n: number) => `EXPERIENCIA
+${"-".repeat(n)}
+Analista de datos
+`;
+
+  it("no se dispara con una linea separadora larga", () => {
+    const t0 = Date.now();
+    new ParserCV().parse(conGuiones(60_000));
+    expect(Date.now() - t0).toBeLessThan(500);
+  });
+
+  it("el costo crece de forma lineal, no cuadratica", () => {
+    const medir = (n: number) => {
+      const texto = conGuiones(n);
+      const t0 = Date.now();
+      new ParserCV().parse(texto);
+      return Date.now() - t0;
+    };
+    medir(20_000); // calentamiento: la primera pasada carga el catalogo
+    const corto = medir(20_000);
+    const largo = medir(80_000);
+    // Con 4x de entrada, un costo cuadratico daria ~16x. Se deja un margen
+    // amplio para no volver la prueba fragil en una maquina cargada.
+    expect(largo).toBeLessThan(Math.max(corto, 1) * 8 + 100);
+  });
+
+  it("sigue encontrando el correo despues de un bloque largo", () => {
+    const texto = `CONTACTO
+${"-".repeat(20_000)}
+laura.gomez@example.com
+`;
+    const r = new ParserCV().parse(texto);
+    expect(r.email?.valor).toBe("laura.gomez@example.com");
+  });
+});

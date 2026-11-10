@@ -133,7 +133,10 @@ export class EvaluadorSalario implements EvaluadorDimension {
 
   evaluar(perfil: PerfilScoring, vacante: VacanteScoring): ResultadoDimension {
     // Sin dato no se puede afirmar nada: neutro en lugar de penalizar.
-    if (vacante.salario == null) {
+    // El cero cuenta como "no publicado", no como una oferta de cero pesos:
+    // tratarlo como oferta real le daba el máximo de la dimensión a una
+    // vacante que no paga nada.
+    if (vacante.salario == null || vacante.salario <= 0) {
       return { valor: 0.5, motivo: "La vacante no publica el salario." };
     }
 
@@ -190,7 +193,14 @@ export class EvaluadorUbicacion implements EvaluadorDimension {
       !perfil.ciudad || perfil.modalidad === "REMOTO" || vacante.modalidad === "REMOTO";
     if (irrelevante) return { valor: 1, motivo: "La ciudad no restringe esta vacante." };
 
-    const coincide = clave(perfil.ciudad!) === clave(vacante.ciudad ?? "");
+    // La ciudad de la vacante es opcional. Sin ese dato no se puede afirmar
+    // que esté en otra ciudad: antes se comparaba contra "" y el candidato
+    // perdía la dimensión entera con un motivo que no era cierto.
+    if (!vacante.ciudad?.trim()) {
+      return { valor: 0.5, motivo: "La vacante no indica la ciudad." };
+    }
+
+    const coincide = clave(perfil.ciudad!) === clave(vacante.ciudad);
     return {
       valor: coincide ? 1 : 0,
       motivo: coincide ? "La vacante está en tu ciudad." : "La vacante está en otra ciudad.",

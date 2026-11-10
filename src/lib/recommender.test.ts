@@ -51,4 +51,17 @@ describe("recommender", () => {
     expect(recs[0].desglose).toHaveProperty("skills");
     expect(recs[0].desglose).toHaveProperty("modalidad");
   });
+
+  it("descarta los trozos sin letras ni digitos", () => {
+    // Un "React, -, Node" escrito a mano dejaba el guion como un requisito
+    // mas, siempre incumplido, que hundia el promedio de la dimension con mas
+    // peso del Match Score.
+    expect(parseRequisitos("React, -, Node")).toEqual(["React", "Node"]);
+    expect(parseRequisitos("React, ., , ?, Node")).toEqual(["React", "Node"]);
+    expect(parseRequisitos(" , - , . ")).toEqual([]);
+  });
+
+  it("no descarta nombres legitimos con simbolos", () => {
+    expect(parseRequisitos("C++, C#, .NET, Node.js")).toEqual(["C++", "C#", ".NET", "Node.js"]);
+  });
 });

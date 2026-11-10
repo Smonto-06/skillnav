@@ -243,15 +243,39 @@ export interface RolDetectado {
   generico: boolean;
 }
 
+/**
+ * ¿El alias aparece como una secuencia de palabras completas del texto?
+ *
+ * Los alias del catálogo vienen ya normalizados y sin espacios
+ * ("desarrolladordeapis"), así que no se pueden comparar palabra a palabra. Se
+ * comparan contra las concatenaciones de palabras *contiguas*: "Desarrollador
+ * de APIs" produce "desarrolladordeapis" y coincide, mientras que
+ * "automóviles" es una sola palabra y nunca produce "movil".
+ *
+ * Antes esto era una heurística por longitud —los alias de 5 o más caracteres
+ * se buscaban como subcadena— y daba falsos positivos graves: "Vendedor de
+ * automóviles" detectaba el rol Móvil y sacaba 95% contra una vacante de
+ * desarrollo móvil. Es el mismo criterio que ya usaba `ngramas`.
+ */
+function mencionaAlias(palabras: string[], alias: string): boolean {
+  for (let i = 0; i < palabras.length; i++) {
+    let acumulado = "";
+    for (let j = i; j < palabras.length; j++) {
+      acumulado += palabras[j];
+      if (acumulado === alias) return true;
+      // Pasada la longitud del alias, ninguna secuencia más larga puede igualarlo.
+      if (acumulado.length >= alias.length) break;
+    }
+  }
+  return false;
+}
+
 // Detecta los roles mencionados en un cargo o titular. Si hay uno específico
 // ("Desarrollador Backend") se descarta el genérico ("Desarrollador").
-// Los alias cortos ("ios", "ui", "qa") solo cuentan como palabra completa para
-// no confundir "servicios" con iOS; los largos se buscan como subcadena.
 export function detectarRoles(texto: string | null | undefined): RolDetectado[] {
-  const k = clave(texto ?? "");
-  if (!k) return [];
-  const palabras = new Set((texto ?? "").split(/[^\p{L}\p{N}+#]+/u).map(clave).filter(Boolean));
-  const menciona = (a: string) => (a.length < 5 ? palabras.has(a) : k.includes(a));
+  const palabras = (texto ?? "").split(/[^\p{L}\p{N}+#]+/u).map(clave).filter(Boolean);
+  if (!palabras.length) return [];
+  const menciona = (a: string) => mencionaAlias(palabras, a);
   const hallados = ROLES.filter((r) => r.alias.some(menciona)).map((r) => ({
     nombre: r.nombre,
     areas: r.areas,
