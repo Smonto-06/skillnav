@@ -80,7 +80,7 @@ export interface Metricas {
   vacantes: number;
   vacantesSinPostulaciones: number;
   postulaciones: number;
-  /** Postulaciones por candidato que tiene al menos una. */
+  /** Postulaciones por candidato registrado (no por candidato que postuló). */
   tasaPostulacion: number | null;
   porEstado: { etiqueta: string; cantidad: number }[];
   /** Vacantes con más postulaciones. */
@@ -107,7 +107,12 @@ export async function obtenerMetricas(): Promise<Metricas> {
     await Promise.all([
       prisma.candidato.count({ where: { rol: "CANDIDATO" } }),
       prisma.vacante.count(),
-      prisma.postulacion.count(),
+      // El mismo filtro de rol que el conteo de candidatos. Sin él, numerador
+      // y denominador miden poblaciones distintas: una cuenta ADMIN puede
+      // postularse, y sus postulaciones sumaban arriba pero no abajo. Con un
+      // solo admin con tres postulaciones y ningún candidato activo, el panel
+      // llegaba a mostrar "3 postulaciones por candidato".
+      prisma.postulacion.count({ where: { candidato: { rol: "CANDIDATO" } } }),
       prisma.postulacion.groupBy({ by: ["estado"], _count: { _all: true } }),
       prisma.postulacion.groupBy({ by: ["vacanteId"], _count: { _all: true } }),
       prisma.ejecucionRecalculo.findFirst({ orderBy: { createdAt: "desc" } }),

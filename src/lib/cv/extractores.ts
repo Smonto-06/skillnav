@@ -39,6 +39,12 @@ export interface ExtractorTexto {
 export function normalizarTexto(bruto: string): string {
   return bruto
     .replace(/\r\n?/g, "\n")
+    // Los caracteres de control no son espacios en blanco, asi que trim()
+    // los conservaba. El byte nulo en particular es ilegal en PostgreSQL:
+    // llegaba intacto hasta el guardado del borrador y reventaba con un
+    // error 22P05 que el candidato veia como un fallo de servidor sin
+    // explicacion. Se conservan el salto de linea y la tabulacion.
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
     .replace(/[ \t ]+/g, " ")
     .split("\n")
     .map((l) => l.trim())

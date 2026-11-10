@@ -127,3 +127,17 @@ describe("extraerTextoCV", () => {
     ).rejects.toThrow(/no soportado/i);
   });
 });
+
+describe("normalizarTexto · caracteres de control", () => {
+  it("elimina el byte nulo, que PostgreSQL rechaza", () => {
+    // Llegaba intacto hasta el guardado del borrador y reventaba con un
+    // error 22P05 que el candidato veia como un fallo de servidor.
+    const texto = normalizarTexto("Laura" + "\u0000" + " Gomez");
+    expect(texto).toBe("Laura Gomez");
+  });
+
+  it("elimina otros controles pero conserva el salto y la tabulacion", () => {
+    expect(normalizarTexto("Perfil" + "\u001F" + "\nDatos")).toBe("Perfil\nDatos");
+    expect(normalizarTexto("a\tb")).toBe("a b");
+  });
+});
