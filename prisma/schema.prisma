@@ -175,3 +175,35 @@ enum NivelIdioma {
   C2
   NATIVO
 }
+
+/// HU-27 · Pesos del motor de scoring, configurables por el administrador.
+/// Una sola fila: `id` fijo en 1 para que no puedan existir dos configuraciones
+/// vigentes al mismo tiempo.
+model ConfiguracionScoring {
+  id          Int      @id @default(1)
+  skills      Float    @default(0.40)
+  rol         Float    @default(0.20)
+  experiencia Float    @default(0.15)
+  salario     Float    @default(0.10)
+  modalidad   Float    @default(0.10)
+  ubicacion   Float    @default(0.05)
+  /// Quién hizo el último cambio y cuándo, para poder auditarlo.
+  editadoPor  String?
+  updatedAt   DateTime @updatedAt
+}
+
+/// HU-28 · Registro de cada recálculo masivo de scores.
+/// Guarda el conteo y los errores para que el administrador vea qué pasó, en
+/// lugar de un proceso que corre en silencio.
+model EjecucionRecalculo {
+  id             String   @id @default(cuid())
+  ejecutadoPor   String
+  perfiles       Int
+  vacantes       Int
+  paresEvaluados Int
+  errores        Int
+  duracionMs     Int
+  /// Mensajes de los errores encontrados, para poder diagnosticarlos.
+  detalleErrores Json?
+  createdAt      DateTime @default(now())
+}

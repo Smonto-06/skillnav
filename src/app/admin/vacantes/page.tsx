@@ -26,12 +26,26 @@ export default async function AdminVacantesPage({
       <p className="text-sm font-medium text-acento-texto">Panel de administración</p>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Catálogo de vacantes</h1>
-        <Link
-          href="/admin/vacantes/nueva"
-          className="rounded-full bg-acento px-4 py-2 text-sm font-semibold text-marca hover:bg-acento-hover"
-        >
-          Nueva vacante
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/metricas"
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Métricas
+          </Link>
+          <Link
+            href="/admin/scoring"
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Pesos del scoring
+          </Link>
+          <Link
+            href="/admin/vacantes/nueva"
+            className="rounded-full bg-acento px-4 py-2 text-sm font-semibold text-marca hover:bg-acento-hover"
+          >
+            Nueva vacante
+          </Link>
+        </div>
       </div>
       <p className="mt-1 text-sm text-slate-500">
         Sesión de {admin.email} · {vacantes.length}{" "}

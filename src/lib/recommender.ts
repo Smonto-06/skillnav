@@ -2,7 +2,14 @@
 // Toma el perfil del candidato y el catálogo de vacantes, calcula el matchScore
 // de cada una y las ordena de mayor a menor. Separa el parsing de requisitos
 // (texto -> lista) de la lógica de scoring, que vive en scoring.ts.
-import { matchScore, Modalidad, PerfilScoring, ResultadoScoring } from "./scoring";
+import {
+  PESOS_DEFAULT,
+  matchScore,
+  type Modalidad,
+  type Pesos,
+  type PerfilScoring,
+  type ResultadoScoring,
+} from "./scoring";
 
 export interface VacanteInput {
   id: string;
@@ -33,7 +40,10 @@ export function parseRequisitos(requisitos?: string | null): string[] {
 export function buildRecommendations<V extends VacanteInput>(
   perfil: PerfilInput,
   vacantes: V[],
-  ahora = new Date()
+  ahora = new Date(),
+  // HU-27: los pesos los define el administrador. Si no se pasan se usan los
+  // de fábrica, así que las llamadas que ya existían no cambian de resultado.
+  pesos: Pesos = PESOS_DEFAULT
 ): Recomendacion<V>[] {
   return vacantes
     .map((vacante) => ({
@@ -48,7 +58,7 @@ export function buildRecommendations<V extends VacanteInput>(
           modalidad: vacante.modalidad,
           ciudad: vacante.ciudad,
         },
-        undefined,
+        pesos,
         ahora
       ),
     }))

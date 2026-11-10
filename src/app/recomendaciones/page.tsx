@@ -7,7 +7,7 @@ import { cargarPerfilScoring } from "@/lib/perfil-scoring";
 import { detalleVacante, filtrarVacantes, resumenRequisitos } from "@/lib/presentacion";
 import { Alert, Card } from "@/components/ui";
 import { BotonPostular, BuscadorVacantes, MatchRing, RequisitosVacante } from "@/components/vacantes";
-import { PESOS_DEFAULT } from "@/lib/scoring";
+import { pesosDesdeConfiguracion } from "@/lib/scoring/configuracion";
 
 export const dynamic = "force-dynamic";
 
@@ -36,11 +36,16 @@ export default async function RecomendacionesPage({
 }) {
   const candidato = await requireCandidato();
 
-  const [{ perfil }, vacantes, postulaciones] = await Promise.all([
+  const [{ perfil }, vacantes, postulaciones, config] = await Promise.all([
     cargarPerfilScoring(candidato),
     prisma.vacante.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.postulacion.findMany({ where: { candidatoId: candidato.id }, select: { vacanteId: true } }),
+    // HU-27: los pesos que configuró el administrador. Sin esta lectura, el
+    // panel de pesos no afectaría ningún puntaje.
+    prisma.configuracionScoring.findUnique({ where: { id: 1 } }),
   ]);
+
+  const pesos = pesosDesdeConfiguracion(config);
 
   const yaPostulado = new Set(postulaciones.map((p) => p.vacanteId));
 
@@ -59,7 +64,9 @@ export default async function RecomendacionesPage({
   );
   const recomendaciones = buildRecommendations(
     perfil,
-    filtrarVacantes(vacantes, searchParams.q, searchParams.ciudad, filtros)
+    filtrarVacantes(vacantes, searchParams.q, searchParams.ciudad, filtros),
+    new Date(),
+    pesos
   );
 
   return (
@@ -69,14 +76,18 @@ export default async function RecomendacionesPage({
         Ordenadas por compatibilidad con tu perfil y preferencias.
       </p>
       <div className="mt-6 rounded-xl border border-acento/30 bg-acento-suave px-5 py-4 text-sm leading-relaxed text-slate-700">
+        {/* Los porcentajes salen de los pesos vigentes y no escritos a mano:
+            si el administrador los cambia (HU-27), este texto los sigue. */}
         <strong className="text-slate-900">¿Qué significa el porcentaje (Match Score)?</strong> Es
         la compatibilidad entre tu hoja de vida y cada vacante, calculada en tiempo real. Evalúa
-        tus habilidades frente a los requisitos (40%) reconociendo sinónimos y equivalencias (por
-        ejemplo, PostgreSQL cubre SQL), la afinidad de tu rol con el cargo (20%; un perfil Full
-        Stack cubre una vacante Backend), tus años de experiencia relevante (15%), el salario
-        (10%), la modalidad (10%; si prefieres híbrido también eres compatible con vacantes
-        presenciales y remotas) y la ciudad (5%). Mientras más completo esté tu perfil, con
-        nivel y años en cada habilidad y fechas en cada cargo, más preciso es el resultado.
+        tus habilidades frente a los requisitos ({pct(pesos.skills)}) reconociendo sinónimos y
+        equivalencias (por ejemplo, PostgreSQL cubre SQL), la afinidad de tu rol con el cargo (
+        {pct(pesos.rol)}; un perfil Full Stack cubre una vacante Backend), tus años de experiencia
+        relevante ({pct(pesos.experiencia)}), el salario ({pct(pesos.salario)}), la modalidad (
+        {pct(pesos.modalidad)}; si prefieres híbrido también eres compatible con vacantes
+        presenciales y remotas) y la ciudad ({pct(pesos.ubicacion)}). Mientras más completo esté
+        tu perfil, con nivel y años en cada habilidad y fechas en cada cargo, más preciso es el
+        resultado.
       </div>
 
       <div className="mt-6">
@@ -157,7 +168,9 @@ export default async function RecomendacionesPage({
                           <div className="flex justify-between text-xs text-slate-500">
                             <span>
                               {d.etiqueta}{" "}
-                              <span className="text-slate-400">(peso {pct(PESOS_DEFAULT[d.clave])})</span>
+                              {/* El peso vigente, no el de fábrica: si el
+                                  administrador lo cambió, acá se ve el real. */}
+                              <span className="text-slate-400">(peso {pct(pesos[d.clave])})</span>
                             </span>
                             <span className="font-medium text-slate-700">{valor}%</span>
                           </div>

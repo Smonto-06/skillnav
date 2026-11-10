@@ -3,25 +3,13 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Borra las vacantes del seed anterior para evitar duplicados al re-ejecutar.
-  await prisma.vacante.deleteMany({
-    where: {
-      empresa: {
-        in: [
-          "Magneto",
-          "Bancolombia",
-          "Rappi",
-          "Grupo Exito",
-          "EPM",
-          "Accenture",
-          "Almacenes Flamingo",
-          "Tiendas D1",
-          "Sura",
-          "Falabella",
-        ],
-      },
-    },
-  });
+  // Antes esto empezaba con un deleteMany de las vacantes del seed, y eso
+  // borraba en silencio las postulaciones de los candidatos: Postulacion tiene
+  // onDelete: Cascade. El panel de administracion bloquea justamente ese caso,
+  // asi que el seed no puede saltarselo por la puerta de atras.
+  //
+  // Ahora actualiza la vacante si ya existe (misma empresa y mismo titulo) y
+  // solo crea las que faltan, asi que se puede re-ejecutar sin perder nada.
 
   const vacantes = [
     {
@@ -136,11 +124,31 @@ async function main() {
     },
   ];
 
+  let creadas = 0;
+  let actualizadas = 0;
+
   for (const v of vacantes) {
-    await prisma.vacante.create({ data: v });
+    // La identidad de una vacante del seed es empresa + titulo. No hay clave
+    // unica compuesta en el esquema, asi que se busca primero.
+    const existente = await prisma.vacante.findFirst({
+      where: { empresa: v.empresa, titulo: v.titulo },
+      select: { id: true },
+    });
+
+    if (existente) {
+      await prisma.vacante.update({ where: { id: existente.id }, data: v });
+      actualizadas++;
+    } else {
+      await prisma.vacante.create({ data: v });
+      creadas++;
+    }
   }
 
-  console.log(`Seed: ${vacantes.length} vacantes creadas.`);
+  const postulaciones = await prisma.postulacion.count();
+  console.log(
+    `Seed: ${creadas} vacante(s) creadas, ${actualizadas} actualizadas. ` +
+      `${postulaciones} postulacion(es) intactas.`
+  );
 }
 
 main()
