@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 import { requireCandidato } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { completitud } from "@/lib/completeness";
+import { estadoOnboarding } from "@/lib/onboarding";
 import {
   FORMACION_COMPLEMENTARIA,
   NIVEL_EDUCATIVO_LABEL,
@@ -82,6 +83,15 @@ export default async function PerfilPage({
     tienePreferencia: !!preferencia,
   });
 
+  // HU-03: mismo cálculo que el wizard, para no repetir la regla de qué falta.
+  const onboarding = estadoOnboarding({
+    nombre: candidato.nombre,
+    titular: candidato.titular,
+    habilidadesCount: habilidades.length,
+    experienciaCount: experiencias.length,
+    tienePreferencia: !!preferencia,
+  });
+
   const totalExperiencia = aniosTotales(
     experiencias.map((e) => ({ inicio: e.fechaInicio, fin: e.fechaFin, actual: e.actual }))
   );
@@ -108,6 +118,22 @@ export default async function PerfilPage({
         {searchParams.ok && <Alert message={searchParams.ok} tone="ok" />}
         {searchParams.error && <Alert message={searchParams.error} />}
       </div>
+
+      {/* HU-03 · si el onboarding quedo a medias, se puede retomar. */}
+      {!onboarding.terminado && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+          <p className="text-sm text-slate-700">
+            Te faltan <strong>{onboarding.total - onboarding.completados}</strong> de{" "}
+            {onboarding.total} pasos del onboarding ({onboarding.porcentaje}% completo).
+          </p>
+          <a
+            href="/onboarding"
+            className="shrink-0 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Retomar guia
+          </a>
+        </div>
+      )}
 
       {/* HU-21 · atajo para llenar el perfil desde el CV en vez de a mano. */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-acento/30 bg-acento-suave px-5 py-4">
