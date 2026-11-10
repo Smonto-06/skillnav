@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
-import { SESSION_COOKIE, signSession, verifySession } from "./session";
+import { DURACION_SESION_MS, SESSION_COOKIE, signSession, verifySession } from "./session";
 
 export function establecerSesion(candidatoId: string): void {
   cookies().set(SESSION_COOKIE, signSession(candidatoId), {
@@ -11,7 +11,10 @@ export function establecerSesion(candidatoId: string): void {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 días
+    // La misma duración que lleva firmada el token, para que la cookie y el
+    // servidor no se contradigan. La que manda es la del token: el `maxAge`
+    // es una instrucción al navegador, y el navegador puede ignorarla.
+    maxAge: DURACION_SESION_MS / 1000,
   });
 }
 
