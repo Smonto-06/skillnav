@@ -1,22 +1,16 @@
 "use client";
 // Enlaces principales del header con resaltado de la sección activa.
+// La decisión de qué enlaces mostrar vive en navegacion.ts, que sí se prueba.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const LINKS = [
-  { href: "/", label: "Inicio" },
-  { href: "/perfil", label: "Perfil" },
-  { href: "/preferencias", label: "Preferencias" },
-  { href: "/recomendaciones", label: "Recomendaciones" },
-  { href: "/postulaciones", label: "Postulaciones" },
-];
+import { esActivo, linksPara } from "./navegacion";
 
 export default function NavLinks() {
   const pathname = usePathname();
   return (
     <div className="flex items-center gap-1 overflow-x-auto text-sm">
-      {LINKS.map(({ href, label }) => {
-        const activo = href === "/" ? pathname === "/" : pathname.startsWith(href);
+      {linksPara(pathname).map(({ href, label }) => {
+        const activo = esActivo(href, pathname);
         return (
           <Link
             key={href}
