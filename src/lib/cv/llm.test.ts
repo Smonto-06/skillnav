@@ -117,10 +117,9 @@ describe("aPerfilExtraido · validacion de la respuesta", () => {
     expect(blandas.has("Liderazgo")).toBe(true);
   });
 
-  it("el telefono queda en confianza media aun con IA", () => {
-    // Un CV con referencias trae varios numeros: es el error mas facil.
-    const p = aPerfilExtraido({ ...minima, telefono: "3156011165" }, "texto");
-    expect(p.telefono?.confianza).toBe("media");
+  it("descarta un telefono que no aparece en el CV (inventado por el modelo)", () => {
+    const p = aPerfilExtraido({ ...minima, telefono: "3156011165" }, "texto sin numeros");
+    expect(p.telefono).toBeUndefined();
   });
 
   it("no duplica habilidades repetidas por el modelo", () => {

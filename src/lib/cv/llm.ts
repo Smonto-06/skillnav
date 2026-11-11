@@ -16,7 +16,9 @@
 //    produce un borrador con confianzas que HU-23 muestra para revisión.
 import { z } from "zod";
 import type { MotorAnalisisCV } from "./motor";
-import type { Confianza, PerfilExtraido } from "./parser";
+import { ContextoCV, nombrePorMayusculas } from "./parser";
+import type { CampoDetectado, Confianza, PerfilExtraido } from "./parser";
+import { digitos, telefonoDelCandidato, telefonosDeReferencias } from "./telefono";
 import { blandasMencionadas, idiomasMencionados } from "./blandas";
 import { habilidadesMencionadas } from "../taxonomia";
 
@@ -127,7 +129,8 @@ Formato exacto:
 
 Reglas estrictas:
 - No inventes NADA. Si un dato no esta en el texto, usa null o una lista vacia.
-- El telefono debe ser del candidato. Si el CV tiene una seccion de REFERENCIAS con telefonos de otras personas, no los uses. Nunca uses un numero de cedula, CC, NIT o documento de identidad.
+- El telefono debe ser del candidato. Los datos del candidato estan en la cabecera o en la seccion CONTACTO / DATOS PERSONALES, normalmente junto a su correo, su cedula y su direccion. La seccion REFERENCIAS (personales o laborales) contiene nombres, cargos y telefonos de OTRAS personas: nunca devuelvas uno de esos numeros, aunque aparezca primero en el texto. En un PDF a columnas las secciones pueden salir desordenadas: guiate por la cercania del numero al correo y la cedula del candidato, no por el orden. Si no puedes distinguir cual es del candidato, devuelve null.
+- Nunca uses como telefono un numero de cedula, CC, NIT o documento de identidad.
 - El nombre es el del candidato, no el de una referencia. Puede venir partido en varias lineas en mayusculas.
 - "habilidades" es la lista completa; "habilidadesBlandas" es el subconjunto que son habilidades blandas o idiomas (liderazgo, trabajo en equipo, ingles...). Las tecnologias no van en habilidadesBlandas.
 - En experiencias incluye solo cargos laborales, nunca estudios. En educacion solo formacion, nunca cargos.
@@ -252,9 +255,7 @@ export function aPerfilExtraido(r: RespuestaLLM, textoOriginal: string): PerfilE
   return {
     nombre: campo(limpio(r.nombre), base, "Identificado por el modelo"),
     email: campo(limpio(r.email), "alta", "Identificado por el modelo"),
-    // El teléfono conserva confianza media aun con LLM: un CV con referencias
-    // trae varios números y es el error más fácil de cometer.
-    telefono: campo(limpio(r.telefono), "media", "Identificado por el modelo"),
+    telefono: verificarTelefono(limpio(r.telefono), textoOriginal, limpio(r.nombre)),
     linkedin: campo(limpio(r.linkedin), "alta", "Identificado por el modelo"),
     titular: campo(limpio(r.titular), base, "Identificado por el modelo"),
     habilidades: {
@@ -289,6 +290,51 @@ export function aPerfilExtraido(r: RespuestaLLM, textoOriginal: string): PerfilE
     layoutMezclado: false,
     textoOriginal,
   };
+}
+
+/**
+ * Verifica el teléfono que propone el modelo contra el clasificador propio.
+ *
+ * El prompt le advierte al modelo que no use los números de REFERENCIAS, pero
+ * en la práctica se equivocaba igual con los CV a dos columnas, donde el de
+ * una referencia sale primero. Lo que diga el modelo es una propuesta:
+ *
+ * - si es el número de una referencia, se reemplaza por el del candidato (o se
+ *   deja vacío si no hay uno atribuible: mejor un campo vacío que el número de
+ *   otra persona en el perfil);
+ * - si no aparece en el texto del CV, es inventado y corre la misma suerte;
+ * - si el modelo no encontró ninguno, se usa el del clasificador.
+ */
+export function verificarTelefono(
+  propuesto: string | undefined,
+  textoOriginal: string,
+  nombre?: string
+): CampoDetectado<string> | undefined {
+  const ctx = new ContextoCV(textoOriginal);
+  const nombreCandidato = nombre ?? nombrePorMayusculas(ctx.lineas) ?? undefined;
+  const propio = telefonoDelCandidato(ctx, nombreCandidato);
+  const deReferencias = telefonosDeReferencias(ctx, nombreCandidato);
+  const delClasificador = propio
+    ? { valor: propio.valor, confianza: propio.confianza, evidencia: `${propio.evidencia} · ${propio.motivo}` }
+    : undefined;
+
+  if (!propuesto) return delClasificador;
+
+  const d = digitos(propuesto);
+  const apareceEnElCV = d.length >= 7 && digitos(textoOriginal.replace(/\n/g, " ")).includes(d);
+  if (!apareceEnElCV) return delClasificador;
+  if (deReferencias.has(d)) {
+    return delClasificador
+      ? { ...delClasificador, evidencia: `${delClasificador.evidencia} (el modelo había tomado el de una referencia)` }
+      : undefined;
+  }
+  // El modelo y el clasificador coinciden: es la señal más fuerte posible.
+  if (propio && digitos(propio.valor) === d) {
+    return { valor: propuesto, confianza: "alta", evidencia: `Identificado por el modelo · ${propio.motivo}` };
+  }
+  // Discrepan pero el del modelo no es de una referencia: se conserva con
+  // confianza media para que el candidato lo revise.
+  return { valor: propuesto, confianza: "media", evidencia: "Identificado por el modelo" };
 }
 
 export class MotorLLM implements MotorAnalisisCV {

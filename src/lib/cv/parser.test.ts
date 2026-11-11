@@ -60,9 +60,10 @@ describe("ParserCV · contacto", () => {
     expect(p.email?.confianza).toBe("alta");
   });
 
-  it("detecta el telefono pero no se confia: puede ser una cedula", () => {
-    expect(p.telefono?.valor).toBeTruthy();
-    expect(p.telefono?.confianza).toBe("media");
+  it("detecta el telefono de la cabecera con confianza alta si no hay referencias", () => {
+    // La cédula ya se filtra antes, y sin referencias no hay con qué confundirlo.
+    expect(p.telefono?.valor).toBe("+57 301 234 5678");
+    expect(p.telefono?.confianza).toBe("alta");
   });
 
   it("detecta el linkedin y lo normaliza", () => {
