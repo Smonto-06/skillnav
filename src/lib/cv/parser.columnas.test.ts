@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ContextoCV, ParserCV, resumenExtraccion } from "./parser";
 import { nombrePorMayusculas, telefonoDe } from "./parser";
+import { CV_DOS_COLUMNAS } from "./cv-dos-columnas.fixture";
 
 /**
  * Caso real reportado por el board: hoja de vida a dos columnas exportada a
@@ -12,51 +13,7 @@ import { nombrePorMayusculas, telefonoDe } from "./parser";
  * telefono, cero habilidades, cero experiencias y 15 "estudios" que en realidad
  * eran frases del "sobre mi".
  */
-const CV_DOS_COLUMNAS = `CONTACTO
-REFERENCIAS
-315 601 11 65
-Paula Espinosa Osorio
-Sergio Betancur Penagos
-CC. 1017928708
-samulmontoya64@gmail.com
-315 645 8363
-316 747 43 39
-SAMUEL
-MONTOYA
-ESPINOSA
-SOBRE MÍ
-2023-2025 Trabajador de Tienda
-Liderazgo
-Comunicación
-Toma de decisiones
-Español Inglés
-Gestión del tiempo
-Trabajo en equipo
-Pensamiento estratégico
-Trabajo bajo presión
-Durante 3 años trabajé en una tienda de barrio
-realizando labores de atención al cliente, caja
-registradora, abastecimiento, entrega de domicilios y
-aseo general.
-EXPERIENCIA
-HABILIDADES
-IDIOMAS
-EDUCACIÓN
-Soy una persona que le gusta socializar, me gusta ayudar a las personas
-cuando puedo, me gusta trabajar y cumplir mis metas con esfuerzo, me
-gusta trabajar individual y en grupo, soy respetuoso, atento, responsable,
-puntual, aprendo de manera rápida, tengo un buen dominio del ingles, y
-también divido mi vida personal de la laboral.
-2023 Graduado de Bachillerato con
-media técnica en administración de
-empresas.
-Colegio Luis Amigó
-2026(Actualmente) Estudiante de
-la carrera Ingeniería de Sistemas
-Universidad EAFIT
-2025-2026 Trabajador en Almacén de Ropa
-Realizo labores de atención al cliente, caja registradora,
-reabastecimiento y aseo general.`;
+
 
 const p = new ParserCV().parse(CV_DOS_COLUMNAS);
 
@@ -128,6 +85,12 @@ describe("CV a dos columnas · lo que fallaba antes", () => {
 
   it("no toma la cedula como telefono", () => {
     expect(p.telefono?.valor).not.toContain("1017928708");
+  });
+
+  it("toma el celular del candidato y no el de una referencia", () => {
+    // Los de las referencias (315 645 8363, 316 747 43 39) salen pegados a la
+    // cédula y el correo del candidato: la cercanía engañaría.
+    expect(p.telefono?.valor).toBe("315 601 11 65");
   });
 
   it("detecta las habilidades blandas y los idiomas, no solo tecnologias", () => {

@@ -11,6 +11,7 @@
 // es más honesto mostrar la duda que escribir datos falsos en el perfil.
 import { HabilidadCatalogo, clave, detectarRoles, habilidadesMencionadas } from "../taxonomia";
 import { blandasMencionadas, idiomasMencionados } from "./blandas";
+import { RE_DOCUMENTO, telefonoDelCandidato } from "./telefono";
 
 export type Confianza = "alta" | "media" | "baja";
 
@@ -186,6 +187,11 @@ export class ContextoCV {
     return true;
   }
 
+  /** Sección que anuncia una línea si es un encabezado; null si es contenido. */
+  encabezado(linea: string): string | null {
+    return ContextoCV.encabezadoDe(linea);
+  }
+
   /** true si el reparto por secciones es poco fiable (CV a varias columnas). */
   get layoutMezclado(): boolean {
     return !ContextoCV.layoutEsConfiable(this.lineas, this.secciones);
@@ -228,10 +234,6 @@ export class ContextoCV {
 const RE_EMAIL = /[\w.+-]{1,64}@[\w-]{1,63}\.[\w.-]{2,63}/;
 const RE_LINKEDIN = /(?:linkedin\.com\/in\/|linkedin:\s*)([\w%-]+)/i;
 
-// Un documento de identidad se parece mucho a un teléfono. Si la línea lo
-// anuncia como cédula, NIT o pasaporte, no es un teléfono.
-const RE_DOCUMENTO = /\b(c\.?c\.?|cedula|cédula|nit|t\.?i\.?|pasaporte|documento|identificacion|identificación)\b/i;
-
 /**
  * Celular colombiano: 10 dígitos que empiezan por 3, con o sin indicativo +57
  * y con cualquier separación interna. Se exige el 3 inicial a propósito: es lo
@@ -264,11 +266,16 @@ export class DetectorContacto implements DetectorCampo {
       borrador.email = { valor: email.toLowerCase(), confianza: "alta", evidencia: email };
     }
 
-    const tel = telefonoDe(ctx.lineas);
+    // No "el primer número del texto": en un CV a dos columnas REFERENCIAS
+    // puede salir antes que CONTACTO. telefonoDelCandidato decide por sección o
+    // por cercanía a los datos propios, y nunca devuelve el de una referencia.
+    const tel = telefonoDelCandidato(ctx, nombrePorMayusculas(ctx.lineas) ?? undefined);
     if (tel) {
-      // Media incluso filtrando documentos: un CV con referencias trae varios
-      // teléfonos y no hay forma seguraisima de saber cuál es el del candidato.
-      borrador.telefono = { valor: tel.valor, confianza: "media", evidencia: tel.evidencia };
+      borrador.telefono = {
+        valor: tel.valor,
+        confianza: tel.confianza,
+        evidencia: `${tel.evidencia} · ${tel.motivo}`,
+      };
     }
 
     const linkedin = ctx.texto.match(RE_LINKEDIN);
