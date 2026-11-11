@@ -60,9 +60,14 @@ describe("ParserCV · contacto", () => {
     expect(p.email?.confianza).toBe("alta");
   });
 
-  it("detecta el telefono pero no se confia: puede ser una cedula", () => {
-    expect(p.telefono?.valor).toBeTruthy();
-    expect(p.telefono?.confianza).toBe("media");
+  it("confia en el telefono que esta en la cabecera", () => {
+    // Esta prueba esperaba "media" para cualquier telefono. Dejo de valer
+    // cuando la deteccion paso a mirar DONDE aparece el numero: aqui esta en
+    // la tercera linea, junto al email y al linkedin, antes de cualquier
+    // encabezado, y el documento no tiene seccion de referencias. No hay con
+    // que confundirlo.
+    expect(p.telefono?.valor).toContain("301");
+    expect(p.telefono?.confianza).toBe("alta");
   });
 
   it("detecta el linkedin y lo normaliza", () => {
@@ -272,5 +277,47 @@ laura.gomez@example.com
 `;
     const r = new ParserCV().parse(texto);
     expect(r.email?.valor).toBe("laura.gomez@example.com");
+  });
+});
+
+// Caso real reportado: el CV trae una seccion CONTACTO con los datos del
+// candidato y una seccion REFERENCIAS con los de otras personas. Se estaba
+// guardando el telefono de la referencia como si fuera el del candidato.
+const CV_CON_REFERENCIAS = `
+CARLOS ANDRES RUIZ
+Auxiliar Administrativo
+
+CONTACTO
+Telefono: 315 601 11 65
+Correo: carlos.ruiz@ejemplo.com
+Medellin, Antioquia
+
+EXPERIENCIA LABORAL
+Auxiliar Administrativo - Comercial XYZ (2022 - actual)
+Manejo de archivo y atencion al publico.
+
+REFERENCIAS
+Martha Lucia Perez - Jefe inmediata
+Telefono: 300 123 45 67
+Juan Pablo Gomez - Companero de trabajo
+Telefono: 310 987 65 43
+`;
+
+describe("ParserCV · telefono frente a las referencias", () => {
+  const p = parser.parse(CV_CON_REFERENCIAS);
+
+  it("toma el telefono de la seccion CONTACTO, no el de la referencia", () => {
+    expect(p.telefono?.valor.replace(/\D/g, "")).toBe("3156011165");
+    expect(p.telefono?.confianza).toBe("alta");
+  });
+
+  it("no toma ninguno de los numeros de las referencias", () => {
+    const digitos = p.telefono?.valor.replace(/\D/g, "") ?? "";
+    expect(digitos).not.toBe("3001234567");
+    expect(digitos).not.toBe("3109876543");
+  });
+
+  it("sigue detectando el correo del candidato", () => {
+    expect(p.email?.valor).toBe("carlos.ruiz@ejemplo.com");
   });
 });

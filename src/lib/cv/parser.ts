@@ -101,8 +101,35 @@ const ENCABEZADOS: Record<string, string[]> = {
   // catálogo, pasan por contenido de la sección anterior y el desorden se
   // vuelve invisible.
   idiomas: ["idiomas", "languages", "nivel de idiomas"],
-  contacto: ["contacto", "datos de contacto", "informacion de contacto", "contact"],
-  referencias: ["referencias", "referencias personales", "referencias laborales", "references"],
+  // El catálogo de estos dos es más ancho que el de los demás a propósito: de
+  // que se reconozcan depende saber cuál teléfono es del candidato y cuál de
+  // sus referencias. Un encabezado que no esté acá no rompe nada, pero deja la
+  // decisión en manos de la heurística de la cabecera.
+  contacto: [
+    "contacto",
+    "contactos",
+    "datos de contacto",
+    "informacion de contacto",
+    "información de contacto",
+    "datos personales",
+    "informacion personal",
+    "información personal",
+    "datos basicos",
+    "datos básicos",
+    "contact",
+    "contact information",
+    "personal information",
+  ],
+  referencias: [
+    "referencias",
+    "referencias personales",
+    "referencias laborales",
+    "referencias familiares",
+    "referencia personal",
+    "referencia laboral",
+    "contactos de referencia",
+    "references",
+  ],
 };
 
 export class ContextoCV {
@@ -254,6 +281,52 @@ export function telefonoDe(lineas: string[]): { valor: string; evidencia: string
   return null;
 }
 
+/**
+ * Teléfono del candidato, no el de sus referencias.
+ *
+ * Una hoja de vida con referencias trae varios teléfonos, y tomar el primero
+ * que aparezca es una lotería: si la sección de referencias quedó antes en el
+ * texto, se guardaba el número del jefe anterior como si fuera el del
+ * candidato. Pasó con una hoja de vida real.
+ *
+ * Se busca por prioridad y la confianza refleja de dónde salió:
+ *
+ * 1. La sección que el propio CV rotuló como CONTACTO. Si el documento lo
+ *    dice, no hay que adivinar.
+ * 2. La cabecera, donde casi siempre están los datos de contacto aunque no
+ *    haya encabezado.
+ * 3. El resto del documento, pero sin pasar de donde empiezan las referencias.
+ *
+ * El corte usa `encabezadoDe` y no una búsqueda de palabras sueltas: buscar
+ * "jefe" o "referencia" en cualquier línea truncaría el CV de alguien cuyo
+ * cargo sea "Jefe de Bodega".
+ */
+export function telefonoDeCandidato(
+  ctx: ContextoCV
+): { valor: string; evidencia: string; confianza: Confianza } | null {
+  const inicioReferencias = ctx.lineas.findIndex(
+    (l) => ContextoCV.encabezadoDe(l) === "referencias"
+  );
+  const antesDeReferencias =
+    inicioReferencias >= 0 ? ctx.lineas.slice(0, inicioReferencias) : ctx.lineas;
+
+  // Con layout mezclado el reparto por secciones no significa nada, así que la
+  // sección CONTACTO no es evidencia de nada y se salta.
+  const seccionContacto = ctx.layoutMezclado ? [] : ctx.seccion("contacto");
+
+  const intentos: Array<{ lineas: string[]; confianza: Confianza }> = [
+    { lineas: seccionContacto, confianza: "alta" },
+    { lineas: ctx.cabecera, confianza: "alta" },
+    { lineas: antesDeReferencias, confianza: "media" },
+  ];
+
+  for (const intento of intentos) {
+    const hallado = telefonoDe(intento.lineas);
+    if (hallado) return { ...hallado, confianza: intento.confianza };
+  }
+  return null;
+}
+
 export class DetectorContacto implements DetectorCampo {
   readonly campo = "contacto";
 
@@ -264,11 +337,16 @@ export class DetectorContacto implements DetectorCampo {
       borrador.email = { valor: email.toLowerCase(), confianza: "alta", evidencia: email };
     }
 
-    const tel = telefonoDe(ctx.lineas);
+    const tel = telefonoDeCandidato(ctx);
     if (tel) {
-      // Media incluso filtrando documentos: un CV con referencias trae varios
-      // teléfonos y no hay forma seguraisima de saber cuál es el del candidato.
-      borrador.telefono = { valor: tel.valor, confianza: "media", evidencia: tel.evidencia };
+      // La confianza la decide de dónde salió el número: alta si el propio CV
+      // lo puso bajo CONTACTO o en la cabecera, media si hubo que buscarlo en
+      // el cuerpo del documento.
+      borrador.telefono = {
+        valor: tel.valor,
+        confianza: tel.confianza,
+        evidencia: tel.evidencia,
+      };
     }
 
     const linkedin = ctx.texto.match(RE_LINKEDIN);

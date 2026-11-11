@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MotorLLM, aPerfilExtraido, configDesdeEntorno, extraerJSON } from "./llm";
+import { MotorLLM, aPerfilExtraido, configDesdeEntorno, extraerJSON, telefonoConsolidado } from "./llm";
 
 describe("configDesdeEntorno", () => {
   it("devuelve null sin clave: eso apaga el motor y dispara el respaldo", () => {
@@ -167,5 +167,81 @@ describe("aPerfilExtraido · union con el catalogo", () => {
     const p = aPerfilExtraido({ ...minima, habilidades: ["Liderazgo"] }, "atencion al cliente");
     expect(p.habilidades.evidencia).toMatch(/modelo/);
     expect(p.habilidades.evidencia).toMatch(/catálogo/);
+  });
+});
+
+describe("telefonoConsolidado", () => {
+  // Caso real: el modelo devolvio el telefono de la referencia. El prompt ya
+  // le pedia no hacerlo; igual lo hizo. Las reglas no son mas listas, pero
+  // saben donde empieza la seccion REFERENCIAS.
+  const CV = `
+CARLOS ANDRES RUIZ
+Auxiliar Administrativo
+
+CONTACTO
+Telefono: 315 601 11 65
+Correo: carlos.ruiz@ejemplo.com
+
+EXPERIENCIA LABORAL
+Auxiliar Administrativo - Comercial XYZ (2022 - actual)
+
+REFERENCIAS
+Martha Lucia Perez - Jefe inmediata
+Telefono: 300 123 45 67
+`;
+
+  const digitos = (s?: string) => (s ?? "").replace(/\D/g, "");
+
+  it("descarta el numero que el modelo tomo de las referencias", () => {
+    const r = telefonoConsolidado("300 123 45 67", CV);
+    expect(digitos(r?.valor)).toBe("3156011165");
+  });
+
+  it("respeta al modelo cuando acerto", () => {
+    const r = telefonoConsolidado("315 601 11 65", CV);
+    expect(digitos(r?.valor)).toBe("3156011165");
+  });
+
+  it("usa el de las reglas si el modelo no devolvio ninguno", () => {
+    const r = telefonoConsolidado(undefined, CV);
+    expect(digitos(r?.valor)).toBe("3156011165");
+    expect(r?.confianza).toBe("alta");
+  });
+
+  it("no inventa un telefono si el CV no trae ninguno", () => {
+    expect(telefonoConsolidado(undefined, "CONTACTO" + "\n" + "Sin numero aqui")).toBeUndefined();
+  });
+
+  it("respeta al modelo si el CV no declara secciones", () => {
+    const suelto = "Juan Perez" + "\n" + "Llamar al 320 555 11 22";
+    expect(digitos(telefonoConsolidado("320 555 11 22", suelto)?.valor)).toBe("3205551122");
+  });
+});
+
+describe("aPerfilExtraido · el telefono pasa por el cruce", () => {
+  // Prueba el cableado real, no solo el helper: aPerfilExtraido es lo que
+  // corre en produccion cuando responde el modelo.
+  const CV = `
+CARLOS ANDRES RUIZ
+
+CONTACTO
+Telefono: 315 601 11 65
+
+REFERENCIAS
+Martha Lucia Perez - Jefe inmediata
+Telefono: 300 123 45 67
+`;
+
+  const base = { habilidades: [], habilidadesBlandas: [], experiencias: [], educacion: [] };
+
+  it("corrige al modelo cuando devolvio el telefono de la referencia", () => {
+    const p = aPerfilExtraido({ ...base, telefono: "300 123 45 67" } as never, CV);
+    expect(p.telefono?.valor.replace(/\D/g, "")).toBe("3156011165");
+    expect(p.telefono?.evidencia).toMatch(/referencias/i);
+  });
+
+  it("deja el del modelo cuando es el correcto", () => {
+    const p = aPerfilExtraido({ ...base, telefono: "315 601 11 65" } as never, CV);
+    expect(p.telefono?.valor.replace(/\D/g, "")).toBe("3156011165");
   });
 });

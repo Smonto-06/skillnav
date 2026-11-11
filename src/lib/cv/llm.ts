@@ -17,6 +17,7 @@
 import { z } from "zod";
 import type { MotorAnalisisCV } from "./motor";
 import type { Confianza, PerfilExtraido } from "./parser";
+import { ContextoCV, telefonoDeCandidato } from "./parser";
 import { blandasMencionadas, idiomasMencionados } from "./blandas";
 import { habilidadesMencionadas } from "../taxonomia";
 
@@ -211,6 +212,71 @@ const limpio = (s?: string | null) => {
   return v && v.length > 0 ? v : undefined;
 };
 
+const soloDigitos = (s: string) => s.replace(/\D/g, "");
+
+/**
+ * Decide el teléfono cruzando lo que dijo el modelo con lo que dice la
+ * estructura del documento.
+ *
+ * El modelo lee el texto corrido y el prompt ya le pide no usar los teléfonos
+ * de la sección de referencias, pero igual se equivoca: probándolo con una
+ * hoja de vida real tomó el número del contacto de referencia en vez del del
+ * candidato. El motor por reglas no es más listo, pero sí sabe dónde está cada
+ * cosa: conoce el encabezado CONTACTO y sabe dónde empiezan las REFERENCIAS.
+ *
+ * Reglas, en orden:
+ *
+ * 1. Si el número del modelo aparece después del encabezado de referencias, es
+ *    de otra persona. Se descarta.
+ * 2. Si las reglas lo encontraron bajo CONTACTO o en la cabecera (confianza
+ *    alta) y no coincide con el del modelo, mandan las reglas.
+ * 3. En cualquier otro caso se respeta al modelo.
+ */
+export function telefonoConsolidado(
+  delModelo: string | undefined,
+  textoOriginal: string
+): { valor: string; confianza: Confianza; evidencia: string } | undefined {
+  const ctx = new ContextoCV(textoOriginal);
+  const porReglas = telefonoDeCandidato(ctx);
+
+  const inicioRefs = ctx.lineas.findIndex(
+    (l) => ContextoCV.encabezadoDe(l) === "referencias"
+  );
+  const enZonaDeReferencias = (numero: string) => {
+    if (inicioRefs < 0) return false;
+    const digitos = soloDigitos(numero);
+    if (digitos.length < 7) return false;
+    const idx = ctx.lineas.findIndex((l) => soloDigitos(l).includes(digitos));
+    return idx >= inicioRefs;
+  };
+
+  if (delModelo && enZonaDeReferencias(delModelo)) {
+    return porReglas
+      ? {
+          valor: porReglas.valor,
+          confianza: porReglas.confianza,
+          evidencia:
+            "El numero del modelo estaba en la seccion de referencias; se tomo el de la seccion de contacto",
+        }
+      : undefined;
+  }
+
+  if (
+    porReglas?.confianza === "alta" &&
+    (!delModelo || soloDigitos(porReglas.valor) !== soloDigitos(delModelo))
+  ) {
+    return {
+      valor: porReglas.valor,
+      confianza: "alta",
+      evidencia: "Tomado de la seccion de contacto del CV",
+    };
+  }
+
+  return delModelo
+    ? { valor: delModelo, confianza: "media", evidencia: "Identificado por el modelo" }
+    : undefined;
+}
+
 /**
  * Convierte la respuesta ya validada en el mismo `PerfilExtraido` que produce
  * el motor por reglas, para que HU-23 no tenga que distinguir de dónde vino.
@@ -252,9 +318,10 @@ export function aPerfilExtraido(r: RespuestaLLM, textoOriginal: string): PerfilE
   return {
     nombre: campo(limpio(r.nombre), base, "Identificado por el modelo"),
     email: campo(limpio(r.email), "alta", "Identificado por el modelo"),
-    // El teléfono conserva confianza media aun con LLM: un CV con referencias
-    // trae varios números y es el error más fácil de cometer.
-    telefono: campo(limpio(r.telefono), "media", "Identificado por el modelo"),
+    // El teléfono no se toma del modelo sin más: se cruza con la estructura
+    // del documento, que es lo único que distingue el número del candidato del
+    // de sus referencias.
+    telefono: telefonoConsolidado(limpio(r.telefono), textoOriginal),
     linkedin: campo(limpio(r.linkedin), "alta", "Identificado por el modelo"),
     titular: campo(limpio(r.titular), base, "Identificado por el modelo"),
     habilidades: {
