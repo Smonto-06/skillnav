@@ -3,9 +3,11 @@
 // parser por reglas, el clasificador de teléfonos y la verificación del motor
 // con IA tienen que dar el mismo resultado sobre el mismo documento.
 //
-// Datos del candidato: cédula, correo y celular 315 645 8363 (bloque CONTACTO).
-// Referencias: Paula Espinosa Osorio y Sergio Betancur Penagos, con los
-// números 315 601 11 65 y 316 747 43 39 (bloque REFERENCIAS).
+// Datos del candidato (bloque CONTACTO): celular 315 601 11 65, cédula y
+// correo. Referencias: Paula Espinosa Osorio y Sergio Betancur Penagos, con
+// los números 315 645 8363 y 316 747 43 39, que el PDF entrega uno detrás del
+// otro. Ojo: la cédula y el correo quedan pegados a los números de las
+// referencias, así que la cercanía a los datos propios NO sirve para decidir.
 export const CV_DOS_COLUMNAS = `CONTACTO
 REFERENCIAS
 315 601 11 65

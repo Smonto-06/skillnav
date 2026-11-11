@@ -88,8 +88,9 @@ describe("CV a dos columnas · lo que fallaba antes", () => {
   });
 
   it("toma el celular del candidato y no el de una referencia", () => {
-    // El de la referencia (315 601 11 65) sale primero en el texto.
-    expect(p.telefono?.valor).toBe("315 645 8363");
+    // Los de las referencias (315 645 8363, 316 747 43 39) salen pegados a la
+    // cédula y el correo del candidato: la cercanía engañaría.
+    expect(p.telefono?.valor).toBe("315 601 11 65");
   });
 
   it("detecta las habilidades blandas y los idiomas, no solo tecnologias", () => {

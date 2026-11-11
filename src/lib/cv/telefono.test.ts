@@ -13,13 +13,16 @@ describe("digitos", () => {
 });
 
 describe("telefonoDelCandidato · CV real a dos columnas", () => {
-  it("toma el celular junto al correo y la cédula, no el de la referencia que sale primero", () => {
-    expect(telefonoDelCandidato(ctx(CV_DOS_COLUMNAS))?.valor).toBe("315 645 8363");
+  it("toma el celular del candidato aunque su cédula y su correo queden junto a los de las referencias", () => {
+    expect(telefonoDelCandidato(ctx(CV_DOS_COLUMNAS))?.valor).toBe("315 601 11 65");
   });
 
-  it("clasifica como referencia el número pegado a los nombres de las referencias", () => {
-    const t = clasificarTelefonos(ctx(CV_DOS_COLUMNAS)).find((x) => x.valor === "315 601 11 65");
-    expect(t?.dueno).toBe("referencia");
+  it("reconoce el bloque de dos números seguidos como los teléfonos de las dos referencias", () => {
+    const t = clasificarTelefonos(ctx(CV_DOS_COLUMNAS));
+    const dueno = (valor: string) => t.find((x) => x.valor === valor)?.dueno;
+    expect(dueno("315 645 8363")).toBe("referencia");
+    expect(dueno("316 747 43 39")).toBe("referencia");
+    expect(dueno("315 601 11 65")).toBe("candidato");
   });
 });
 
@@ -69,26 +72,51 @@ Marta Díaz López
     expect(tel?.valor).toBe("310 222 3344");
   });
 
+  it("un número en la misma línea que el nombre de otra persona es de una referencia", () => {
+    const cv = `CONTACTO
+REFERENCIAS
+301 222 3344
+Paula Espinosa Osorio 315 645 8363
+ana@correo.com`;
+    expect(telefonoDelCandidato(ctx(cv))?.valor).toBe("301 222 3344");
+  });
+
+  it("si todos los números forman el bloque, no descarta ninguno a ciegas", () => {
+    const cv = `CONTACTO
+REFERENCIAS
+Paula Espinosa Osorio
+Sergio Betancur Penagos
+315 645 8363
+316 747 43 39`;
+    // Dos nombres y dos números: no hay número sobrante que sea el del candidato.
+    expect(telefonoDelCandidato(ctx(cv))?.valor).toBe("315 645 8363");
+    expect(telefonoDelCandidato(ctx(cv))?.confianza).toBe("media");
+  });
+
   it("no toma la cédula como teléfono", () => {
     expect(telefonoDelCandidato(ctx("C.C. 3101234567\npedro@correo.com"))).toBeNull();
   });
 });
 
 describe("verificarTelefono · respuesta del motor con IA", () => {
-  it("corrige al modelo cuando devuelve el número de una referencia", () => {
-    const t = verificarTelefono("315 601 11 65", CV_DOS_COLUMNAS, "Samuel Montoya Espinosa");
-    expect(t?.valor).toBe("315 645 8363");
+  it("corrige al modelo cuando devuelve el número de una referencia (el error reportado)", () => {
+    const t = verificarTelefono("315 645 8363", CV_DOS_COLUMNAS, "Samuel Montoya Espinosa");
+    expect(t?.valor).toBe("315 601 11 65");
     expect(t?.evidencia).toContain("referencia");
   });
 
+  it("también corrige el otro número de referencia", () => {
+    expect(verificarTelefono("3167474339", CV_DOS_COLUMNAS)?.valor).toBe("315 601 11 65");
+  });
+
   it("si el modelo y el clasificador coinciden, la confianza es alta", () => {
-    const t = verificarTelefono("3156458363", CV_DOS_COLUMNAS, "Samuel Montoya Espinosa");
-    expect(t?.valor).toBe("3156458363");
+    const t = verificarTelefono("3156011165", CV_DOS_COLUMNAS, "Samuel Montoya Espinosa");
+    expect(t?.valor).toBe("3156011165");
     expect(t?.confianza).toBe("alta");
   });
 
   it("si el modelo no encontró teléfono, usa el del clasificador", () => {
-    expect(verificarTelefono(undefined, CV_DOS_COLUMNAS)?.valor).toBe("315 645 8363");
+    expect(verificarTelefono(undefined, CV_DOS_COLUMNAS)?.valor).toBe("315 601 11 65");
   });
 
   it("descarta un número que no aparece en el CV", () => {
