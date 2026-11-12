@@ -12,6 +12,18 @@ import { ESTADOS_POSTULACION } from "./presentacion";
 /** Umbral a partir del cual un match se considera bueno (HU-29). */
 export const UMBRAL_BUEN_MATCH = 60;
 
+// El recálculo evalúa cada perfil contra cada vacante: su costo es el producto
+// de los dos, no la suma. Con los datos de hoy termina al instante, pero sin un
+// tope una base grande lo convertiría en una petición de minutos que el
+// servidor corta por tiempo, dejando al administrador sin resultado y sin
+// explicación.
+//
+// El tope no se esconde: lo que quedó fuera se informa en `perfilesOmitidos` y
+// `vacantesOmitidas`, para que el panel pueda decir que fue una muestra y no un
+// recorrido completo. Un tope silencioso sería peor que no tenerlo.
+export const MAX_PERFILES_POR_EJECUCION = 500;
+export const MAX_VACANTES_POR_EJECUCION = 2_000;
+
 export interface ResultadoRecalculo {
   perfiles: number;
   vacantes: number;
@@ -21,6 +33,10 @@ export interface ResultadoRecalculo {
   duracionMs: number;
   /** Cuántos pares superaron el umbral de buen match. */
   buenosMatches: number;
+  /** Perfiles que quedaron fuera por el tope de la ejecución. Cero si se cubrió todo. */
+  perfilesOmitidos: number;
+  /** Vacantes que quedaron fuera por el tope de la ejecución. Cero si se cubrió todo. */
+  vacantesOmitidas: number;
 }
 
 /**
@@ -35,12 +51,26 @@ export interface ResultadoRecalculo {
  * Un fallo en un candidato no detiene el proceso: se cuenta, se guarda el
  * mensaje y se sigue con el siguiente.
  */
-export async function recalcularScores(): Promise<ResultadoRecalculo> {
+export async function recalcularScores(
+  limites: { perfiles?: number; vacantes?: number } = {}
+): Promise<ResultadoRecalculo> {
   const inicio = Date.now();
+  const maxPerfiles = limites.perfiles ?? MAX_PERFILES_POR_EJECUCION;
+  const maxVacantes = limites.vacantes ?? MAX_VACANTES_POR_EJECUCION;
+
+  const [totalPerfiles, totalVacantes] = await Promise.all([
+    prisma.candidato.count({ where: { rol: "CANDIDATO" } }),
+    prisma.vacante.count(),
+  ]);
 
   const [candidatos, vacantes] = await Promise.all([
-    prisma.candidato.findMany({ where: { rol: "CANDIDATO" }, select: { id: true, email: true, titular: true, resumen: true } }),
-    prisma.vacante.findMany(),
+    prisma.candidato.findMany({
+      where: { rol: "CANDIDATO" },
+      select: { id: true, email: true, titular: true, resumen: true },
+      orderBy: { createdAt: "asc" },
+      take: maxPerfiles,
+    }),
+    prisma.vacante.findMany({ orderBy: { createdAt: "asc" }, take: maxVacantes }),
   ]);
 
   const pesos = pesosDesdeConfiguracion(
@@ -71,6 +101,8 @@ export async function recalcularScores(): Promise<ResultadoRecalculo> {
     detalleErrores,
     duracionMs: Date.now() - inicio,
     buenosMatches,
+    perfilesOmitidos: Math.max(0, totalPerfiles - candidatos.length),
+    vacantesOmitidas: Math.max(0, totalVacantes - vacantes.length),
   };
 }
 

@@ -34,6 +34,9 @@ model Candidato {
   postulaciones  Postulacion[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
+  /// El panel de metricas cuenta y lista filtrando por rol.
+  @@index([rol])
 }
 
 /// HU-23 · Borrador de lo que el parser detectó en el CV, pendiente de que el
@@ -59,6 +62,9 @@ model Educacion {
   anio        Int?
   nivel       NivelEducativo?
   enCurso     Boolean         @default(false)
+
+  /// El perfil de scoring se arma siempre filtrando por candidato.
+  @@index([candidatoId])
 }
 
 model Experiencia {
@@ -72,6 +78,9 @@ model Experiencia {
   /// Cargo actual: el tiempo se cuenta hasta hoy.
   actual      Boolean   @default(false)
   descripcion String?
+
+  /// El perfil de scoring se arma siempre filtrando por candidato.
+  @@index([candidatoId])
 }
 
 model Habilidad {
@@ -83,6 +92,9 @@ model Habilidad {
   nivel       NivelHabilidad?
   /// Años de experiencia usando la habilidad.
   anios       Int?
+
+  /// El perfil de scoring se arma siempre filtrando por candidato.
+  @@index([candidatoId])
 }
 
 model Preferencia {
@@ -109,6 +121,15 @@ model Vacante {
   ciudad         String?
   postulaciones  Postulacion[]
   createdAt      DateTime      @default(now())
+
+  /// La página de recomendaciones recorre el catálogo por lotes ordenando por
+  /// createdAt. Sin este índice cada lote obliga a ordenar el catálogo entero.
+  @@index([createdAt])
+  /// Filtros que el candidato aplica desde la página. Se resuelven en la base
+  /// de datos en lugar de traer todo y descartar en memoria.
+  @@index([modalidad])
+  @@index([ciudad])
+  @@index([salario])
 }
 
 model Postulacion {
@@ -119,6 +140,11 @@ model Postulacion {
   vacanteId   String
   estado      EstadoPostulacion @default(POSTULADO)
   fecha       DateTime          @default(now())
+
+  /// "Mis postulaciones" y la marca de "ya te postulaste" filtran por candidato.
+  @@index([candidatoId])
+  /// El conteo de postulaciones por vacante del panel de métricas.
+  @@index([vacanteId])
 }
 
 enum Rol {

@@ -2,7 +2,13 @@
 // Lista de vacantes desde BD + puntaje + acción "Postularse" por registro.
 import { requireCandidato } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildRecommendations } from "@/lib/recommender";
+import type { Prisma } from "@prisma/client";
+import { recorrerCatalogo } from "@/lib/catalogo";
+import {
+  condicionDePreseleccion,
+  condicionesDeCatalogo,
+  convienePreseleccionar,
+} from "@/lib/preseleccion";
 import { cargarPerfilScoring } from "@/lib/perfil-scoring";
 import { detalleVacante, filtrarVacantes, resumenRequisitos } from "@/lib/presentacion";
 import { Alert, Card } from "@/components/ui";
@@ -36,9 +42,11 @@ export default async function RecomendacionesPage({
 }) {
   const candidato = await requireCandidato();
 
-  const [{ perfil }, vacantes, postulaciones, config] = await Promise.all([
+  const [{ perfil }, totalCatalogo, postulaciones, config] = await Promise.all([
     cargarPerfilScoring(candidato),
-    prisma.vacante.findMany({ orderBy: { createdAt: "asc" } }),
+    // Un conteo en vez del catálogo entero: decide si hace falta preseleccionar
+    // y alimenta el "N de M" del encabezado.
+    prisma.vacante.count(),
     prisma.postulacion.findMany({ where: { candidatoId: candidato.id }, select: { vacanteId: true } }),
     // HU-27: los pesos que configuró el administrador. Sin esta lectura, el
     // panel de pesos no afectaría ningún puntaje.
@@ -62,12 +70,40 @@ export default async function RecomendacionesPage({
     filtros.modalidad?.trim() ||
     filtros.salarioMin != null
   );
-  const recomendaciones = buildRecommendations(
+
+  // Con un catálogo grande se preselecciona por habilidades y rol antes de
+  // puntuar; con el catálogo actual la condición es `null` y se recorre todo,
+  // que es lo que se venía haciendo.
+  const preseleccion = convienePreseleccionar(totalCatalogo)
+    ? condicionDePreseleccion(perfil)
+    : null;
+
+  const { recomendaciones, evaluadas, truncado } = await recorrerCatalogo({
     perfil,
-    filtrarVacantes(vacantes, searchParams.q, searchParams.ciudad, filtros),
-    new Date(),
-    pesos
-  );
+    pesos,
+    ahora: new Date(),
+    cargarLote: (desde, tamano) =>
+      prisma.vacante.findMany({
+        // Los filtros estructurales se resuelven en la base de datos. El de
+        // texto y el de ciudad ignoran tildes, y traducir eso a SQL exigiría
+        // una extensión del motor, así que se aplican sobre el lote.
+        //
+        // Van dentro de `AND` y no sueltos en el objeto: los tres usan la clave
+        // `OR`, y puestos al mismo nivel el último sobrescribiría a los
+        // anteriores, dejando filtros sin aplicar sin que nada falle.
+        // El cast es necesario porque `condicionesDeCatalogo` vive en la capa de
+        // dominio y no importa tipos de Prisma: mantenerla libre del ORM es lo
+        // que permite probarla sin base de datos. Su forma la fijan sus pruebas.
+        where: { AND: condicionesDeCatalogo(preseleccion, filtros) as Prisma.VacanteWhereInput[] },
+        // El desempate por id es necesario para paginar con cursor: si dos
+        // vacantes comparten createdAt, sin un orden total la paginación puede
+        // saltarse filas o repetirlas.
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: tamano,
+        ...(desde ? { cursor: { id: desde }, skip: 1 } : {}),
+      }),
+    filtrarLote: (lote) => filtrarVacantes(lote, searchParams.q, searchParams.ciudad, filtros),
+  });
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -100,10 +136,18 @@ export default async function RecomendacionesPage({
       </div>
       {filtrando && (
         <p className="mt-3 text-sm text-slate-500">
-          {recomendaciones.length} de {vacantes.length} vacantes coinciden con tu búsqueda ·{" "}
+          {recomendaciones.length} de {totalCatalogo} vacantes coinciden con tu búsqueda ·{" "}
           <a href="/recomendaciones" className="font-medium text-acento-texto hover:underline">
             Quitar filtros
           </a>
+        </p>
+      )}
+      {/* Si el catálogo dio más coincidencias de las que se muestran, se dice.
+          Callarlo haría parecer que no hay más vacantes que estas. */}
+      {truncado && (
+        <p className="mt-3 text-sm text-slate-500">
+          Mostrando las {recomendaciones.length} vacantes con mayor compatibilidad, de{" "}
+          {evaluadas} evaluadas. Usa los filtros para acotar la búsqueda.
         </p>
       )}
 

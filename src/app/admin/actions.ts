@@ -182,6 +182,13 @@ export async function recalcularAction() {
   });
 
   revalidatePath("/admin/metricas");
-  const resumen = `Recalculo listo: ${r.paresEvaluados} pares evaluados (${r.perfiles} perfiles x ${r.vacantes} vacantes), ${r.errores} error(es)`;
+  // Si el tope de la ejecución dejó datos fuera, se dice. Informar "listo"
+  // sobre una muestra, sin aclararlo, haría creer al administrador que se
+  // revisó el catálogo completo.
+  const omitido =
+    r.perfilesOmitidos || r.vacantesOmitidas
+      ? `. Muestra parcial: quedaron fuera ${r.perfilesOmitidos} perfil(es) y ${r.vacantesOmitidas} vacante(s)`
+      : "";
+  const resumen = `Recalculo listo: ${r.paresEvaluados} pares evaluados (${r.perfiles} perfiles x ${r.vacantes} vacantes), ${r.errores} error(es)${omitido}`;
   redirect(`/admin/metricas?ok=${encodeURIComponent(resumen)}`);
 }
