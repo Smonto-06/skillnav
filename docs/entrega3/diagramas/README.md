@@ -474,20 +474,17 @@ classDiagram
     ParserCV o-- "6" DetectorCampo : agrega
 ```
 
-## Qué va en esta carpeta
+## Los siete diagramas
 
-| Archivo | Qué es |
-|---|---|
-| `1-clases.png` | Diagrama de clases de implementación |
-| `2-entidad-relacion.png` | Modelo entidad-relación (las 10 tablas) |
-| `3-componentes.png` | Diagrama de componentes |
-| `4-despliegue.png` | Diagrama de despliegue |
-| `5-patron-strategy.png` | Recorte del patrón Strategy |
-| `6a-composite-scoring.png` | Recorte del patrón Composite — motor de scoring |
-| `6b-composite-parser.png` | Recorte del patrón Composite — lector de CV |
-
+| # | Diagrama | Qué muestra |
+|---|---|---|
+| 1 | Clases | Las clases de implementación y sus relaciones |
+| 2 | Entidad-relación | El modelo de datos: las 10 tablas |
+| 3 | Componentes | La arquitectura por capas y sus dependencias |
+| 4 | Despliegue | Dónde corre cada pieza en producción |
+| 5 | Patrón Strategy | Un extractor distinto por formato de hoja de vida |
+| 6A | Patrón Composite | El puntaje total como suma de seis evaluadores |
+| 6B | Patrón Composite | La lectura del CV como suma de seis detectores |
 
 Los cuatro primeros son los que exige la plantilla de la entrega. Los tres
 recortes ilustran las fichas de patrones de la Sección 6 del informe.
-
-
