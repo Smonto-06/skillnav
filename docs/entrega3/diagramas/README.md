@@ -1,7 +1,3 @@
-# Diagramas de arquitectura — Entrega 3
-
-Los diagramas de la Entrega 3 del proyecto SkillNav.
-
 
 # Diagramas de Arquitectura y Diseño — Entrega 3
 
